@@ -71,7 +71,8 @@ PURITY = str(config["binning"]["filtering"]["purity"])
 MEMCORE = str(config['mem']['normal_mem_per_core_gb']) + "G"
 if config['mem']['big_mem_avail']:
     BIGMEMCORE = str(config['mem']['big_mem_per_core_gb']) + "G"
-
+else:
+    BIGMEMCORE = False
 
 # temporary directory will be stored inside the OUTPUTDIR directory
 # unless a absolute path is set
