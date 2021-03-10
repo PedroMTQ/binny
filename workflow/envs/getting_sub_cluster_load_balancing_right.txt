@@ -1,0 +1,69 @@
+def get_contig_kmer_matrix2(contig_list, ksize_list, n_jobs=1):
+    contig_kmer_freq_matrix = []
+
+    contig_list = [i + [len(i[1])] for i in contig_list]
+    contig_list.sort(key=lambda i: i[2], reverse=True)
+    start = timer()
+    chunks_to_process = [[] for i in range(n_jobs)]
+    for i in contig_list:
+        # chunks_to_process.sort(key=lambda i: len(''.join([contig[1] for contig in i])))
+        chunks_to_process.sort(key=lambda i: sum([contig[2] for contig in i]))
+        chunks_to_process[0].append(i)
+    end = timer()
+    print('Created load balanced list in {0}s.'.format(end - start))
+    # Try to free mem
+    del contig_list
+
+...
+
+with parallel_backend("loky"):
+    contig_kmer_freq_matrix_chunks = Parallel(n_jobs=n_jobs)(delayed(get_contig_kmer_freq2)(ksize, kmer_list_can, chunks) for chunks in chunks_to_process)
+
+
+####
+
+cluster_list = [[i] + [len(dict_cp[i]['contigs'])] for i in list(dict_cp.keys())]
+cluster_list.sort(key=lambda i: i[1], reverse=True)
+start = timer()
+chunks_to_process = [[] for i in range(n_jobs)]
+for i in cluster_list:
+    # chunks_to_process.sort(key=lambda i: len(''.join([contig[1] for contig in i])))
+    chunks_to_process.sort(key=lambda i: sum([len(cluster_dict[list(cluster_dict.keys())[0]]['contigs']) for cluster_dict in i]))
+    chunks_to_process[0].append({i[0]: dict_cp[i[0]]})
+end = timer()
+print('Created load balanced list in {0}s.'.format(end - start))
+
+####
+
+clusters_to_process = [i for e in sub_clstr_res if e for i in list(e[0].keys())]
+
+# Old optics mode dpscan
+######
+while cluster_contig_df['contig'].size < pk and pk >= min_dims:
+    pk = int(pk * 0.75)
+if pk < min_dims:
+    pk = min_dims
+if pk > cluster_contig_df['contig'].size:
+    pk = 2
+cluster_est = knn_sne_coords(cluster_contig_df, pk)
+while not cluster_est and pk >= min_dims:
+    pk = int(pk * 0.75)
+if pk < min_dims:
+    pk = min_dims
+    cluster_est = knn_sne_coords(cluster_contig_df, pk)
+if cluster_est and cluster_contig_df['contig'].size > pk >= min_dims:
+    dims = [dim for dim in ['x', 'y', 'z'] if dim in cluster_contig_df.columns]
+    df_vizbin_coords = cluster_contig_df.loc[:, dims].to_numpy(dtype=np.float64)
+    with parallel_backend('threading'):
+        dbsc = DBSCAN(eps=cluster_est, min_samples=pk, n_jobs=threads_for_dbscan).fit(df_vizbin_coords)
+    new_clusters_labels = dbsc.labels_
+    if len(set(new_clusters_labels)) > 1:
+        new_cluster_names = {item: cluster + '.' + str(index + 1) for index, item in
+                             enumerate(set(new_clusters_labels))}
+        new_clusters_labels = [new_cluster_names[cluster] for cluster in new_clusters_labels]
+        end = timer()
+        print('Found {0} sub-clusters in cluster {1} with DBSCAN and pk of {2} in {3}s.'.format(
+            len(set(new_clusters_labels)), cluster, pk, int(end - start)))
+        new_clusters = contig_df2cluster_dict(cluster_contig_df, new_clusters_labels)
+        outputs.append([new_clusters, cluster])
+        continue

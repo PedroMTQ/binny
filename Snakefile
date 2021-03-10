@@ -227,7 +227,7 @@ rule annotate:
         if [ ! -f $CONDA_PREFIX/db/hmm/HAMAP.hmm.h3m ]; then
           {BINDIR}/prokkaC --dbdir $CONDA_PREFIX/db --setupdb
         fi
-	    {BINDIR}/prokkaC --mincontiglen {config[binning][vizbin][cutoff]} --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --prefix prokka --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
+	    {BINDIR}/prokkaC --mincontiglen {config[binning][binny][cutoff]} --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --prefix prokka --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
 
 	    # Prokka gives a gff file with a long header and with all the contigs at the bottom.  The command below removes the
         # And keeps only the gff table.
@@ -237,26 +237,6 @@ rule annotate:
         LN=$(($LN-$LN1))
         head -n $LN intermediary/prokka.gff | grep -v "^#" | sort | uniq | grep -v "^==" > {output[0]}
         """
-
-rule cut_rRNA:
-    input:
-        "assembly.fa",
-        "intermediary/annotation.filt.gff"
-    output:
-        "intermediary/assembly.cut.fa"
-    log: "logs/binning_cut_rRNA.log"
-    resources:
-        runtime = "2:00:00",
-        mem = MEMCORE
-    threads: 1
-    conda: ENVDIR + "/IMP_annotation.yaml"
-    message: "cut_rRNA: Cutting contigs for vizbin."
-    shell:
-        """
-        export PERL5LIB=$CONDA_PREFIX/lib/site_perl/5.26.2
-        {SRCDIR}/fastaExtractCutRibosomal1000.pl -f {input[0]} -g {input[1]} -l {log} -o {output} -c {config[binning][vizbin][cutoff]}
-        """
-
 
 # essential genes
 rule hmmer_essential:
@@ -323,40 +303,6 @@ rule mergegff:
         """
 
 # binning
-rule vizbin:
-    input:
-        "intermediary/assembly.cut.fa"
-    output:
-        "vizbin.with-contig-names.points"
-    params:
-        java_mem = int(BIGMEMCORE.strip('G')) * workflow.cores if BIGMEMCORE else int(MEMCORE.strip('G')) * workflow.cores
-    resources:
-        runtime = "12:00:00",
-        mem = BIGMEMCORE if BIGMEMCORE else MEMCORE
-    threads: workflow.cores
-    conda: ENVDIR + "/IMP_annotation.yaml"
-    log: "logs/binning_vizbin.log"
-    message: "vizbin: Running VizBin."
-    shell:
-        """
-        TMP_VIZBIN=$(mktemp --tmpdir=intermediary -dt "VIZBIN_XXXXXX")
-        java -jar -Xmx{params[0]}G {BINDIR}/VizBin-dist.jar \
-         -a {config[binning][vizbin][dimension]} \
-         -c {config[binning][vizbin][cutoff]} \
-         -i {input} \
-         -o $TMP_VIZBIN/data.points \
-         -k {config[binning][vizbin][kmer]} \
-         -p {config[binning][vizbin][perp]} \
-         -t {threads} > {log} 2>&1
-
-         if [ -f $TMP_VIZBIN/data.points ]
-           then
-             paste <(grep "^>" {input} | sed -e 's/>//') \
-              <(cat $TMP_VIZBIN/data.points | sed -e 's/,/\t/') > {output}
-           fi
-        rm -rf $TMP_VIZBIN
-        """
-
 rule prepare_binny:
     input:
        mgdepth='intermediary/assembly.contig_depth.txt',
@@ -371,6 +317,59 @@ rule prepare_binny:
        """
 
 if run_mode == 'r_binny':
+    rule cut_rRNA:
+        input:
+            "assembly.fa",
+            "intermediary/annotation.filt.gff"
+        output:
+            "intermediary/assembly.cut.fa"
+        log: "logs/binning_cut_rRNA.log"
+        resources:
+            runtime = "2:00:00",
+            mem = MEMCORE
+        threads: 1
+        conda: ENVDIR + "/IMP_annotation.yaml"
+        message: "cut_rRNA: Cutting contigs for vizbin."
+        shell:
+            """
+            export PERL5LIB=$CONDA_PREFIX/lib/site_perl/5.26.2
+            {SRCDIR}/fastaExtractCutRibosomal1000.pl -f {input[0]} -g {input[1]} -l {log} -o {output} -c {config[binning][vizbin][cutoff]}
+            """
+
+    rule vizbin:
+        input:
+            "intermediary/assembly.cut.fa"
+        output:
+            "vizbin.with-contig-names.points"
+        params:
+            java_mem = int(BIGMEMCORE.strip('G')) * workflow.cores if BIGMEMCORE else int(MEMCORE.strip('G')) * workflow.cores
+        resources:
+            runtime = "12:00:00",
+            mem = BIGMEMCORE if BIGMEMCORE else MEMCORE
+        threads: workflow.cores
+        conda: ENVDIR + "/IMP_annotation.yaml"
+        log: "logs/binning_vizbin.log"
+        message: "vizbin: Running VizBin."
+        shell:
+            """
+            TMP_VIZBIN=$(mktemp --tmpdir=intermediary -dt "VIZBIN_XXXXXX")
+            java -jar -Xmx{params[0]}G {BINDIR}/VizBin-dist.jar \
+             -a {config[binning][vizbin][dimension]} \
+             -c {config[binning][vizbin][cutoff]} \
+             -i {input} \
+             -o $TMP_VIZBIN/data.points \
+             -k {config[binning][vizbin][kmer]} \
+             -p {config[binning][vizbin][perp]} \
+             -t {threads} > {log} 2>&1
+    
+             if [ -f $TMP_VIZBIN/data.points ]
+               then
+                 paste <(grep "^>" {input} | sed -e 's/>//') \
+                  <(cat $TMP_VIZBIN/data.points | sed -e 's/,/\t/') > {output}
+               fi
+            rm -rf $TMP_VIZBIN
+            """
+
     rule binny:
         input:
            outdir="intermediary/clusterFiles",
@@ -443,23 +442,26 @@ if run_mode == 'r_binny':
 elif run_mode == 'py_binny':
     rule binny:
         input:
-            outdir="intermediary/clusterFiles",
             mgdepth='intermediary/assembly.contig_depth.txt',
-            vizbin="vizbin.with-contig-names.points",
             gff="intermediary/annotation_CDS_RNA_hmms.gff",
             assembly="assembly.fa",
         output:
-            "contig_data.tsv",
-            "initial_scatter_plot.pdf",
-            "contigs2clusters_initial.tsv",
+            "intermediary/contig_coordinates.tsv",
+            "intermediary/contig_data.tsv",
+            expand("iteration_{{iteration}}_initial_contigs2clusters.tsv"),
+            expand("intermediary/iteration_{{iteration}}_initial_scatter_plot.pdf"),
+            expand("intermediary/iteration_{{iteration}}_contigs2clusters.tsv"),
+            expand("intermediary/intermediary/iteration_{{iteration}}_final_scatter_plot.pdf"),
+            "final_contigs2clusters.tsv",
             "final_scatter_plot.pdf",
-            "contigs2clusters_final.tsv",
             directory("bins")
         params:
             py_functions = SRCDIR + "/binny_functions.py",
             binnydir="intermediary/",
             completeness=COMPLETENESS,
-            purity=PURITY
+            purity=PURITY,
+            kmers=config["binning"]["binny"]["kmers"],
+            cutoff=config["binning"]["binny"]["cutoff"]
         resources:
             runtime = "12:00:00",
             mem = BIGMEMCORE if BIGMEMCORE else MEMCORE
@@ -468,14 +470,13 @@ elif run_mode == 'py_binny':
         log: "logs/binning_binny.log"
         message: "binny: Running Python Binny."
         script:
-            SRCDIR + "/binny_main.py"qGg
+            SRCDIR + "/binny_main.py"
+
     rule zip_output:
         input:
             'assembly.fa',
-            "contig_data.tsv"
         output:
             "assembly.fa.zip",
-            "contig_data.tsv.zip",
             "intermediary.zip"
         threads: 1
         resources:
@@ -488,6 +489,5 @@ elif run_mode == 'py_binny':
         shell:
            """
            zip -m {output[0]} {input[0]} >> {log} 2>&1
-           zip -m {output[1]} {input[1]} >> {log} 2>&1
-           zip -rm {output[2]} {params.intermediary} >> {log} 2>&1
+           zip -rm {output[1]} {params.intermediary} >> {log} 2>&1
            """

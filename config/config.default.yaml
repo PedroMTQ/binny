@@ -1,7 +1,7 @@
 mem:
   big_mem_avail: FALSE
-  normal_mem_per_core_gb: 9
-  big_mem_per_core_gb: 36
+  normal_mem_per_core_gb: 4
+  big_mem_per_core_gb: 26
 tmp_dir: tmp
 raws:
   Contigs: ""
@@ -15,13 +15,15 @@ binning:
   binny:
     pk: 10
     nn: 4
+    kmers: '2,3,4'
+    cutoff: 500
   vizbin:
     dimension: 50
     kmer: 5
     size: 4
     theta: 0.5
     perp: 30
-    cutoff: 1000
+    cutoff: 500
   filtering:
-    completeness: 25
+    completeness: 40
     purity: 90
