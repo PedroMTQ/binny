@@ -981,7 +981,7 @@ def chose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_di
     previous_nodes = None
     best_marker_set = []
     depth_grace_count = 0
-    while list(marker_sets_graph[current_node]) and depth_grace_count < 2:
+    while list(marker_sets_graph[current_node]) and depth_grace_count < 4:
         current_level_best_marker_set = []
         if previous_nodes == nodes:
             depth_grace_count += 1
@@ -1010,7 +1010,7 @@ def chose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_di
                         if m_t2p in marker_group:
                             node_marker_sets_set.add(marker_group[0])
             if len(node_markers_list) == 0 or len(node_markers_list) == 0:
-                logging.debug('Found zero markers for marker set {0} with {1}.'.format(node, 'TO_FINISH'))
+                logging.debug('Found zero markers for marker set {0}.'.format(node))
                 continue
             node_marker_set_completeness = len(node_marker_sets_set) / marker_sets_graph.nodes.data()[node]['marker_groups']
             node_marker_set_purity = len(set(node_markers_list)) / len(node_markers_list)
@@ -1029,7 +1029,7 @@ def chose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_di
             if not best_marker_set:
                 best_marker_set = [node, node_marker_set_completeness, node_marker_set_purity]
             else:
-                if (node_marker_set_completeness >= best_marker_set[1]
+                if (node_marker_set_completeness >= best_marker_set[1] * 0.90
                         and node_marker_set_purity >= best_marker_set[2] * 0.25):
                     best_marker_set = [node, node_marker_set_completeness, node_marker_set_purity]
                     nodes = list(marker_sets_graph[node])
@@ -1038,8 +1038,8 @@ def chose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_di
                     if not current_level_best_marker_set:
                         current_level_best_marker_set = [node, node_marker_set_completeness, node_marker_set_purity]
                     else:
-                        if (node_marker_set_completeness >= current_level_best_marker_set[1]
-                                and node_marker_set_purity >= current_level_best_marker_set[2] - 0.05):
+                        if (node_marker_set_completeness >= current_level_best_marker_set[1] * 0.90
+                                and node_marker_set_purity >= current_level_best_marker_set[2] * 0.25):
                             current_level_best_marker_set = [node, node_marker_set_completeness, node_marker_set_purity]
                             nodes = list(marker_sets_graph[node])
                             current_node = node
