@@ -1030,7 +1030,7 @@ def chose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_di
                 best_marker_set = [node, node_marker_set_completeness, node_marker_set_purity]
             else:
                 if (node_marker_set_completeness >= best_marker_set[1]
-                        and node_marker_set_purity >= best_marker_set[2] * 0.75):
+                        and node_marker_set_purity >= best_marker_set[2] * 0.25):
                     best_marker_set = [node, node_marker_set_completeness, node_marker_set_purity]
                     nodes = list(marker_sets_graph[node])
                     current_node = node
