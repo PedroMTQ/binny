@@ -975,7 +975,7 @@ def checkm_hmmer_search2prokka_gff(hmm_checkm_marker_out, prokka_gff):
                     pcg.write(line + '\n')
 
 
-def marker_set_markers_found(marker_set, marker_list, tigrfam2pfam_data_dict):
+def get_marker_set_quality(marker_set, marker_list, tigrfam2pfam_data_dict):
     marker_set_markers_found = []
 
     for marker in marker_set:
