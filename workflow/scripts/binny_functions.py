@@ -978,17 +978,18 @@ def checkm_hmmer_search2prokka_gff(hmm_checkm_marker_out, prokka_gff):
 def get_marker_set_quality(marker_set, marker_list, tigrfam2pfam_data_dict):
     marker_set_markers_found = []
 
-    for marker in marker_set:
+    for marker in marker_list:
         t2p_markers = tigrfam2pfam_data_dict.get(marker, [])
-        if any(m_t2p in marker_list for m_t2p in [marker] + t2p_markers):
+        if any(m_t2p in marker_set for m_t2p in [marker] + t2p_markers):
             marker_set_markers_found += marker_list.count(marker) * [marker]
 
     if not marker_set_markers_found:
-        return
+        return [0, '']
 
     marker_set_completeness = round(len(set(marker_set_markers_found)) / len(marker_set), 3)
+    # marker_set_completeness = 1
     marker_set_marker_purities = [round(1 / marker_set_markers_found.count(marker), 3)
-                                  for marker in marker_set_markers_found]
+                                  for marker in set(marker_set_markers_found)]
     marker_set_average_purity = round(sum(marker_set_marker_purities)
                                       / len(marker_set_marker_purities), 3)
     # marker_set_purity = round(len(set(marker_set_markers_found))
@@ -1014,15 +1015,20 @@ def get_marker_list_node_quality(marker_list, node, marker_sets_graph, tigrfam2p
         marker_set_stats = get_marker_set_quality(marker_set, marker_list, tigrfam2pfam_data_dict)
         if marker_set_stats:
             node_marker_sets_completenesses.append(marker_set_stats[0])
-            node_marker_sets_purities.append(marker_set_stats[1])
+            if marker_set_stats[1]:
+                node_marker_sets_purities.append(marker_set_stats[1])
         else:
             node_marker_sets_completenesses.append(0)
-            node_marker_sets_purities.append(0)
 
     node_marker_set_completeness = round(sum(node_marker_sets_completenesses)
                                          / len(node_marker_sets_completenesses), 3)
-    node_marker_set_purity = round(sum(node_marker_sets_purities)
-                                   / len(node_marker_sets_purities), 3)
+    # node_marker_set_completeness = round(sum(node_marker_sets_completenesses)
+    #                                      / marker_sets_graph.nodes.data()[node]['marker_groups'], 3)
+    if node_marker_sets_purities:
+        node_marker_set_purity = round(sum(node_marker_sets_purities)
+                                       / len(node_marker_sets_purities), 3)
+    else:
+        node_marker_set_purity = 0
 
     if node_marker_set_completeness > 1:
         logging.error('Completeness of for marker set {0} is > 1 with {1} for'
