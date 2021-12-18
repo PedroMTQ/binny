@@ -1014,18 +1014,12 @@ def get_marker_list_node_quality(marker_list, node, marker_sets_graph, tigrfam2p
             node_marker_sets_purities.append(marker_set_stats[1])
         else:
             node_marker_sets_completenesses.append(0)
+            node_marker_sets_purities.append(0)
 
     node_marker_set_completeness = round(sum(node_marker_sets_completenesses)
                                          / len(node_marker_sets_completenesses), 3)
-    try:
-        node_marker_set_purity = round(sum(node_marker_sets_purities)
-                                       / len(node_marker_sets_purities), 3)
-    except ZeroDivisionError:
-        print(marker_list)
-        print(node)
-        print(node_marker_sets_completenesses)
-        print(node_marker_sets_purities)
-        raise ZeroDivisionError
+    node_marker_set_purity = round(sum(node_marker_sets_purities)
+                                   / len(node_marker_sets_purities), 3)
 
     if node_marker_set_completeness > 1:
         logging.error('Completeness of for marker set {0} is > 1 with {1} for'
