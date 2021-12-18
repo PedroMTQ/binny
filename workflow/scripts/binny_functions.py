@@ -987,12 +987,15 @@ def get_marker_set_quality(marker_set, marker_list, tigrfam2pfam_data_dict):
         return
 
     marker_set_completness = round(len(marker_set_markers_found) / len(marker_set), 3)
-    marker_set_marker_purities = [round(1 / marker_set_markers_found.count(marker), 3)
-                                  for marker in marker_set_markers_found]
-    marker_set_average_purity = round(sum(marker_set_marker_purities)
-                                      / len(marker_set_marker_purities), 3)
+    # marker_set_marker_purities = [round(1 / marker_set_markers_found.count(marker), 3)
+    #                               for marker in marker_set_markers_found]
+    # marker_set_average_purity = round(sum(marker_set_marker_purities)
+    #                                   / len(marker_set_marker_purities), 3)
+    marker_set_purity = round(len(set(marker_set_markers_found))
+                                      / len(marker_set_markers_found), 3)
 
-    return [marker_set_completness, marker_set_average_purity]
+    # return [marker_set_completness, marker_set_average_purity]
+    return [marker_set_completness, marker_set_purity]
 
 
 def get_marker_list_node_quality(marker_list, node, marker_sets_graph, tigrfam2pfam_data_dict):
@@ -1062,8 +1065,8 @@ def choose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_d
             node_n_marker_sets = marker_sets_graph.nodes.data()[node]['marker_groups']
             node_stats = get_marker_list_node_quality(marker_list, node, marker_sets_graph,
                                                       tigrfam2pfam_data_dict)
-            node_and_children_completenesses = [node_stats[0]]
-            node_and_children_purities = [node_stats[1]]
+            # node_and_children_completenesses = [node_stats[0]]
+            # node_and_children_purities = [node_stats[1]]
             # for child_node in node:
             #     child_node_stats = get_marker_list_node_quality(marker_list,
             #                                                     child_node,
@@ -1071,13 +1074,14 @@ def choose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_d
             #                                                     tigrfam2pfam_data_dict)
             #     node_and_children_completenesses.append(child_node_stats[0])
             #     node_and_children_purities.append(child_node_stats[1])
-
-            node_marker_set_completeness = round(sum(node_and_children_completenesses)
-                                                 / len(node_and_children_completenesses), 3)
+            # node_marker_set_completeness = round(sum(node_and_children_completenesses)
+            #                                      / len(node_and_children_completenesses), 3)
+            # node_marker_set_purity = round(sum(node_and_children_purities)
+            #                                / len(node_and_children_purities), 3)
+            node_marker_set_completeness = node_stats[0]
+            node_marker_set_purity = node_stats[1]
             node_marker_set_completeness_score = round(node_marker_set_completeness
                                                        * node_n_marker_sets / node_n_markers * 100, 3)
-            node_marker_set_purity = round(sum(node_and_children_purities)
-                                           / len(node_and_children_purities), 3)
 
             current_marker_set = [node, node_marker_set_completeness, node_marker_set_purity,
                                   node_marker_set_completeness_score]
