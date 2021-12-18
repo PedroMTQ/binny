@@ -266,7 +266,7 @@ def gather_cluster_data(cluster, cluster_dict, marker_sets_graph, tigrfam2pfam_d
     cluster_essential_genes = [gene for genes in cluster_dict.get(cluster, {}).get('essential')
                                for gene in genes.split(',') if not gene == 'non_essential' ]
     if cluster_essential_genes:
-        marker_set = chose_checkm_marker_set(cluster_essential_genes, marker_sets_graph, tigrfam2pfam_data_dict)
+        marker_set = choose_checkm_marker_set(cluster_essential_genes, marker_sets_graph, tigrfam2pfam_data_dict)
         taxon, cluster_completeness, cluster_purity = marker_set[0], round(marker_set[1], 3), round(marker_set[2], 3)
     else:
         cluster_purity = 0
@@ -869,7 +869,7 @@ def asses_contig_completeness_purity(essential_gene_lol, n_dims, marker_sets_gra
     single_contig_bins = []
     for contig_data in essential_gene_lol:
         all_ess = contig_data[1]
-        marker_set = chose_checkm_marker_set(all_ess, marker_sets_graph, tigrfam2pfam_data_dict)
+        marker_set = choose_checkm_marker_set(all_ess, marker_sets_graph, tigrfam2pfam_data_dict)
         taxon, comp, pur = marker_set[0], marker_set[1], marker_set[2]
         if pur > 0.85 and comp > 0.90:
             bin_dict = {contig_data[0]: {'depth1': np.array([None]), 'contigs': np.array([contig_data[0]]),
@@ -1037,7 +1037,13 @@ def compare_marker_set_stats(marker_set, current_best_marker_set, completenes_va
     return current_best_marker_set
 
 
-def chose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_dict):
+def compare_marker_set_stats_v2(marker_set, current_best_marker_set):
+    if marker_set[3] >= current_best_marker_set[3]:
+        current_best_marker_set = marker_set
+    return current_best_marker_set
+
+
+def choose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_dict):
     nodes = [n for n, d in marker_sets_graph.in_degree() if d == 0]
     current_node = nodes[0]
     previous_nodes = None
@@ -1052,6 +1058,8 @@ def chose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_di
             nodes = [sub_node for node in nodes for sub_node in list(marker_sets_graph[node])]
         previous_nodes = nodes
         for index, node in enumerate(nodes):
+            node_n_markers = marker_sets_graph.nodes.data()[node]['markers']
+            node_n_marker_sets = marker_sets_graph.nodes.data()[node]['marker_sets']
             node_stats = get_marker_list_node_quality(marker_list, node, marker_sets_graph,
                                                       tigrfam2pfam_data_dict)
             node_and_children_completenesses = [node_stats[0]]
@@ -1066,26 +1074,32 @@ def chose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_di
 
             node_marker_set_completeness = round(sum(node_and_children_completenesses)
                                                  / len(node_and_children_completenesses), 3)
+            node_marker_set_completeness_score = round(node_marker_set_completeness
+                                                       * node_n_marker_sets / node_n_markers * 100, 3)
             node_marker_set_purity = round(sum(node_and_children_purities)
                                            / len(node_and_children_purities), 3)
 
-            current_marker_set = [node, node_marker_set_completeness, node_marker_set_purity]
+            current_marker_set = [node, node_marker_set_completeness, node_marker_set_purity,
+                                  node_marker_set_completeness_score]
 
             if not best_marker_set:
                 best_marker_set = [node, node_marker_set_completeness,
-                                   node_marker_set_purity]
+                                   node_marker_set_purity, node_marker_set_completeness_score]
             else:
-                best_marker_set = compare_marker_set_stats(current_marker_set,
-                                                           best_marker_set, 0.975,
-                                                           0.5)
+                # best_marker_set = compare_marker_set_stats(current_marker_set,
+                #                                            best_marker_set, 0.975,
+                #                                            0.5)
+                best_marker_set = compare_marker_set_stats_v2(current_marker_set, best_marker_set)
 
             if not current_level_best_marker_set:
                 current_level_best_marker_set = [node, node_marker_set_completeness,
-                                                 node_marker_set_purity]
+                                                 node_marker_set_purity, node_marker_set_completeness_score]
             else:
-                current_level_best_marker_set = compare_marker_set_stats(current_marker_set,
-                                                                         current_level_best_marker_set,
-                                                                         0.975, 0.5)
+                # current_level_best_marker_set = compare_marker_set_stats(current_marker_set,
+                #                                                          current_level_best_marker_set,
+                #                                                          0.975, 0.5)
+                current_level_best_marker_set = compare_marker_set_stats_v2(current_marker_set,
+                                                                         current_level_best_marker_set)
 
         nodes = list(marker_sets_graph[current_level_best_marker_set[0]])
         current_node = current_level_best_marker_set[0]
