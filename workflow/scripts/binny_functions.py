@@ -997,7 +997,7 @@ def get_marker_set_quality(marker_set, marker_list, tigrfam2pfam_data_dict):
 
 def get_marker_list_node_quality(marker_list, node, marker_sets_graph, tigrfam2pfam_data_dict):
     node_marker_sets = marker_sets_graph.nodes.data()[node]['marker_sets']
-    n_node_marker_sets = marker_sets_graph.nodes.data()[node]['marker_groups']
+    # n_node_marker_sets = marker_sets_graph.nodes.data()[node]['marker_groups']
 
     if node_marker_sets[0][0].startswith('is_'):
         logging.debug('Marker set of {0} identical to higher level set {1}.'
@@ -1059,7 +1059,7 @@ def choose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_d
         previous_nodes = nodes
         for index, node in enumerate(nodes):
             node_n_markers = marker_sets_graph.nodes.data()[node]['markers']
-            node_n_marker_sets = marker_sets_graph.nodes.data()[node]['marker_sets']
+            node_n_marker_sets = marker_sets_graph.nodes.data()[node]['marker_groups']
             node_stats = get_marker_list_node_quality(marker_list, node, marker_sets_graph,
                                                       tigrfam2pfam_data_dict)
             node_and_children_completenesses = [node_stats[0]]
