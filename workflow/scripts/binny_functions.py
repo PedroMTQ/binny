@@ -1064,7 +1064,7 @@ def choose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_d
     depth_grace_count = 0
     # 0: 'domain', 1: 'phylum', 2: 'class', 3: 'order', 4: 'family', 5: 'genus', 6: 'species'
     current_depth_level = 0
-    while list(marker_sets_graph[current_node]) and depth_grace_count < 4 and current_depth_level <= 6:
+    while list(marker_sets_graph[current_node]) and depth_grace_count < 2 and current_depth_level <= 6:
         current_level_best_marker_set = []
         if previous_nodes == nodes:
             depth_grace_count += 1
