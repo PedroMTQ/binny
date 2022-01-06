@@ -1,0 +1,16 @@
+name: Prokka
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - perl-bioperl
+  - parallel
+  - blast
+  - prodigal
+  - tbl2asn
+  - aragorn
+  - barrnap
+  - hmmer
+  - minced
+  - infernal

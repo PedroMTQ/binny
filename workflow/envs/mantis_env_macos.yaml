@@ -1,0 +1,13 @@
+name: mantis_env
+channels:
+  - anaconda
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - cython
+  - hmmer
+  - nltk
+  - psutil
+  - python=3.7
+  - requests

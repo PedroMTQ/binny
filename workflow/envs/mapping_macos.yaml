@@ -1,0 +1,8 @@
+name: Mapping
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bedtools
+  - perl

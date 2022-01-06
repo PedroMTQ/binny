@@ -25,6 +25,22 @@ SRCDIR = srcdir("workflow/scripts")
 BINDIR = srcdir("workflow/bin")
 ENVDIR = srcdir("workflow/envs")
 
+# Choose correct envs for os
+if sys.platform == "linux":
+    binny_env_path = os.path.join(ENVDIR, "py_binny_linux.yaml")
+    fasta_prep_env_path = os.path.join(ENVDIR, "IMP_fasta_no_v.yaml")
+    mantis_env_path = os.path.join(BINDIR, "mantis/mantis_env.yml")
+    prokka_env_path = os.path.join(ENVDIR, "IMP_annotation.yaml")
+    mapping_env_path = os.path.join(ENVDIR, "IMP_mapping.yaml")
+elif sys.platform == "darwin":
+    binny_env_path = os.path.join(ENVDIR, "binny_macos.yaml")
+    fasta_prep_env_path = os.path.join(ENVDIR, "fasta_prep_macos.yaml")
+    mantis_env_path = os.path.join(ENVDIR, "mantis_env_macos.yaml")
+    prokka_env_path = os.path.join(ENVDIR, "prokka_macos.yaml")
+    mapping_env_path = os.path.join(ENVDIR, "mapping_macos.yaml")
+else:
+    raise Exception ('OS not supported')
+
 if SRCDIR not in sys.path:
     sys.path.append(SRCDIR)
     import remove_unused_checkm_hmm_profiles as prepCheckM
@@ -174,7 +190,7 @@ rule format_assembly:
         mem = MEMCORE
     message: "Preparing assembly."
     conda: 
-       os.path.join(ENVDIR, "IMP_fasta_no_v.yaml")
+       fasta_prep_env_path
     shell:
        "fasta_formatter -i {input} -o {output} -w 80"
 
@@ -192,7 +208,7 @@ if not CONTIG_DEPTH:
         threads: 
             getThreads(2) if BIGMEMCORE else getThreads(8)
         conda: 
-            os.path.join(ENVDIR, "IMP_mapping.yaml")
+            mapping_env_path
         log: "logs/analysis_call_contig_depth.log"
         message: "call_contig_depth: Getting data on assembly coverage with mg reads."
         shell:
@@ -227,15 +243,20 @@ rule annotate:
     log: "logs/analysis_annotate.log"
     benchmark: "logs/analysis_annotate_benchmark.txt"
     conda: 
-        os.path.join(ENVDIR, "IMP_annotation.yaml")
+        prokka_env_path
     message: "annotate: Running prokkaP."
     shell:
         """
-        export PERL5LIB=$CONDA_PREFIX/lib/site_perl/5.26.2
-        export LC_ALL=en_US.utf-8
-	{BINDIR}/prokkaP --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --tmpdir {TMPDIR} --prefix prokka --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
+        # export PERL5LIB=$CONDA_PREFIX/lib/site_perl/5.26.2
+        # export LC_ALL=en_US.utf-8
+        # perl -MCPAN -e 'recompile()'
+	    {BINDIR}/prokkaP --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --tmpdir {TMPDIR} --prefix prokka\
+	                     --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
+	    # prokka --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --tmpdir {TMPDIR} --prefix prokka\
+	    #        --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
         
-	# Prokka gives a gff file with a long header and with all the contigs at the bottom.  The command below keeps only the gff table.
+	    # Prokka gives a gff file with a long header and with all the contigs at the bottom.
+	    # The command below keeps only the gff table.
 
         LN=`grep -Hn "^>" intermediary/prokka.gff | head -n1 | cut -f2 -d ":" || if [[ $? -eq 141 ]]; then true; else exit $?; fi`
         LN1=1
@@ -255,7 +276,7 @@ rule mantis_checkm_marker_sets:
         runtime = "48:00:00",
         mem = MEMCORE
     conda: 
-        os.path.join(BINDIR, "mantis/mantis_env.yml")
+        mantis_env_path
     threads: 
         # getThreads(20)
         # getThreads(14)
@@ -305,8 +326,8 @@ rule binny:
     threads: 
         # getThreads(2) if BIGMEMCORE else getThreads(20)
         workflow.cores
-    conda: 
-        os.path.join(ENVDIR, "py_binny_linux.yaml")
+    conda:
+        binny_env_path
     log: "logs/binning_binny.log"
     benchmark: "logs/binning_binny_benchmark.txt"
     message: "binny: Running Python Binny."

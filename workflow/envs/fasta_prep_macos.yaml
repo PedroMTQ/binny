@@ -1,0 +1,5 @@
+name: IMP_fasta
+channels:
+  - biobuilds
+dependencies:
+  - fastx-toolkit

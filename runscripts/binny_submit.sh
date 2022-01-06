@@ -1,4 +1,4 @@
-#! /bin/bash -i
+#!/bin/bash -l
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 VARCONFIG=$DIR/VARIABLE_CONFIG
@@ -126,14 +126,15 @@ elif [ "$INITIAL" = true ]; then
       DB_PATH=${DIR}/$DB_PATH
     fi
     echo "Initializing conda environments."
-    sed -i -e "s|\#nog_ref_folder\=|nog_ref_folder=NA|g" \
-           -e "s|\#pfam_ref_folder\=|pfam_ref_folder=NA|g" \
-           -e "s|\#kofam_ref_folder\=|kofam_ref_folder=NA|g" \
-           -e "s|\#ncbi_ref_folder\=|ncbi_ref_folder=NA|g" \
-           -e "s|\#ncbi_dmp_path_folder\=|ncbi_dmp_path_folder=NA|g" \
-           -e "s|\#tcdb_ref_folder\=|tcdb_ref_folder=NA|g" \
-           -e "s|\#custom_ref\=path\/to\/hmm/custom1\.hmm|custom_ref=${DIR}/database/hmms/checkm_tf/checkm_filtered_tf.hmm\ncheckm_filtered_tf_weight=0.5\ncustom_ref=${DIR}/database/hmms/checkm_pf/checkm_filtered_pf.hmm\ncheckm_filtered_pf_weight=1|g" \
-           ${DIR}/workflow/bin/mantis/MANTIS.config
+    sed -e "s|\#nog_ref_folder\=|nog_ref_folder=NA|g" \
+        -e "s|\#pfam_ref_folder\=|pfam_ref_folder=NA|g" \
+        -e "s|\#kofam_ref_folder\=|kofam_ref_folder=NA|g" \
+        -e "s|\#ncbi_ref_folder\=|ncbi_ref_folder=NA|g" \
+        -e "s|\#ncbi_dmp_path_folder\=|ncbi_dmp_path_folder=NA|g" \
+        -e "s|\#tcdb_ref_folder\=|tcdb_ref_folder=NA|g" \
+        -e "s|\#custom_ref\=path\/to\/hmm/custom1\.hmm|custom_ref=${DIR}/database/hmms/checkm_tf/checkm_filtered_tf.hmm\ncheckm_filtered_tf_weight=0.5\ncustom_ref=${DIR}/database/hmms/checkm_pf/checkm_filtered_pf.hmm\ncheckm_filtered_pf_weight=1|g" \
+        ${DIR}/workflow/bin/mantis/MANTIS.config > ${DIR}/workflow/bin/mantis/MANTIS.config.tmp \
+        && mv ${DIR}/workflow/bin/mantis/MANTIS.config.tmp ${DIR}/workflow/bin/mantis/MANTIS.config
     for i in ${DIR}/conda/*.yaml; do
       env_name=$(head -n 1 ${i} | cut -d' ' -f2)
       if [[ ${env_name} == 'mantis_env' ]]; then
@@ -142,6 +143,8 @@ elif [ "$INITIAL" = true ]; then
     done
     echo "Setting up Mantis with the CheckM databases"
     conda activate ${DIR}/conda/${mantis_env}
+    # Workaround for usage of system Python instead of env one.
+    export PATH=${DIR}/conda/${mantis_env}/bin:$PATH
     # Make sure a compiler for cython is available
     if ! [ -x "$(command -v gcc)" ]; then
       conda install -c conda-forge gcc_linux-64 --yes
