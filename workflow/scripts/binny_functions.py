@@ -784,7 +784,8 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
                                                    hdbscan_epsilon=hdbscan_epsilon,
                                                    hdbscan_min_samples=hdbscan_min_samples, dist_metric=dist_metric)
 
-        logging.info('Initial clustering resulted in {0} clusters.'.format(len(set(labels))))
+        logging.info('Initial clustering with HDBSCAN cluster selection epsilon of {0} '
+                     'resulted in {1} clusters.'.format(hdbscan_epsilon, len(set(labels))))
 
         if n_iterations == 1:
             for cluster in init_clust_dict:
@@ -1197,6 +1198,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
     final_try_counter = 0
     perp_1 = 10
     perp_2 = 100
+    tried_all_epsilons = False
     while embedding_tries <= max_embedding_tries:
         if embedding_tries == 1:
             internal_min_marker_cont_size = check_sustainable_contig_number(x_contigs, internal_min_marker_cont_size,
@@ -1327,6 +1329,15 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         # Preserve original contig data
         if embedding_tries == 1:
             contig_data_df_org = contig_data_df.copy()
+
+
+        if embedding_tries > 1:
+            if hdbscan_epsilon < 0.50:
+                hdbscan_epsilon += 0.1
+                # tried_all_epsilons = False
+            else:
+                hdbscan_epsilon = 0.00
+                # tried_all_epsilons = True
 
         # Find bins
         good_bins, final_init_clust_dict = binny_iterate(contig_data_df, threads, taxon_marker_sets, tigrfam2pfam_data,
