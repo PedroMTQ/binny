@@ -176,6 +176,9 @@ def hdbscan_cluster(contig_data_df, pk=None, include_depth=False, n_jobs=1, hdbs
 
     with parallel_backend('threading'):
         np.random.seed(0)
+        logging.info('HDBSCAN: min_cluster_size={0}, min_samples={1}, cluster_selection_epsilon={2}'.format(pk,
+                                                                                                            hdbscan_min_samples,
+                                                                                                            hdbscan_epsilon))
         hdbsc = hdbscan.HDBSCAN(core_dist_n_jobs=n_jobs, min_cluster_size=pk, min_samples=hdbscan_min_samples,
                                 cluster_selection_epsilon=hdbscan_epsilon, metric=dist_metric).fit(dim_df)
     cluster_labels = hdbsc.labels_
@@ -185,6 +188,9 @@ def hdbscan_cluster(contig_data_df, pk=None, include_depth=False, n_jobs=1, hdbs
         logging.debug('HDBSCAN found only noise trying with lower min_cluster_size={0}.'.format(pk))
         with parallel_backend('threading'):
             np.random.seed(0)
+            logging.info('HDBSCAN: min_cluster_size={0}, min_samples={1}, cluster_selection_epsilon={2}'.format(pk,
+                                                                                                                hdbscan_min_samples,
+                                                                                                                hdbscan_epsilon))
             hdbsc = hdbscan.HDBSCAN(core_dist_n_jobs=n_jobs, min_cluster_size=pk,  min_samples=hdbscan_min_samples,
                                     cluster_selection_epsilon=hdbscan_epsilon, metric=dist_metric).fit(dim_df)
         cluster_labels = hdbsc.labels_
@@ -304,6 +310,9 @@ def hdbscan_sub_clusters(cluster_contig_df, cluster, pk, threads_for_dbscan, dep
 
         with parallel_backend('threading'):
             np.random.seed(0)
+            logging.info('HDBSCAN: min_cluster_size={0}, min_samples={1}, cluster_selection_epsilon={2}'.format(pk,
+                                                                                                                hdbscan_min_samples,
+                                                                                                                hdbscan_epsilon))
             hdbsc = hdbscan.HDBSCAN(core_dist_n_jobs=threads_for_dbscan, min_cluster_size=pk,
                                     min_samples=hdbscan_min_samples, cluster_selection_epsilon=hdbscan_epsilon,
                                     metric=dist_metric).fit(df_coords)
