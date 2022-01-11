@@ -21,7 +21,7 @@ raws:
 sample: "test"
 # Path to desired output dir binny should create and store results in.
 outputdir: "path/to/output/dir"
-# Path to binny dbs, leave at default if you performed the defaulty install.
+# Path to binny dbs, leave at default if you performed the default install.
 db_path: "../db"
 binning:
   binny:
@@ -48,10 +48,10 @@ binning:
       # Number of iterations with perplexity 1.
       tsne_main_iterations: 750
     clustering:
-      # Increasing the HDBSCAN cluster selection epsilon beyond 0.5
+      # Increasing the HDBSCAN cluster selection epsilon max beyond 0.5
       # is not advised as it might massively increase run time, but it might
       # help recover fragmented genomes that would be missed with lower settings.
-      hdbscan_epsilon: 0.00
+      hdbscan_epsilon_range: '0,0.5'
       # Adapted from the HDBSCAN manual: 'Measure of how conservative the
       # clustering should be. With larger values, more points will be declared
       # as noise, and clusters will be restricted to progressively more dense areas.'.

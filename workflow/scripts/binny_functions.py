@@ -176,9 +176,8 @@ def hdbscan_cluster(contig_data_df, pk=None, include_depth=False, n_jobs=1, hdbs
 
     with parallel_backend('threading'):
         np.random.seed(0)
-        logging.info('HDBSCAN: min_cluster_size={0}, min_samples={1}, cluster_selection_epsilon={2}'.format(pk,
-                                                                                                            hdbscan_min_samples,
-                                                                                                            hdbscan_epsilon))
+        logging.info('HDBSCAN: min_cluster_size={0}, min_samples={1}, cluster_selection_epsilon={2}, '
+                     'include_depth={3}'.format(pk, hdbscan_min_samples, hdbscan_epsilon, include_depth))
         hdbsc = hdbscan.HDBSCAN(core_dist_n_jobs=n_jobs, min_cluster_size=pk, min_samples=hdbscan_min_samples,
                                 cluster_selection_epsilon=hdbscan_epsilon, metric=dist_metric).fit(dim_df)
     cluster_labels = hdbsc.labels_
@@ -1200,14 +1199,14 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                         tigrfam2pfam_data, main_contig_data_dict, assembly_dict, max_contig_threshold=3.5e5,
                         tsne_early_exag_iterations=250, tsne_main_iterations=750, internal_min_marker_cont_size=0,
                         include_depth_initial=False, max_embedding_tries=50, include_depth_main=True,
-                        hdbscan_epsilon=0.25, hdbscan_min_samples=2, dist_metric='manhattan'):
+                        hdbscan_epsilon_range=[0, 0.5], hdbscan_min_samples=2, dist_metric='manhattan'):
     np.random.seed(0)
     embedding_tries = 1
     internal_completeness = starting_completeness
     final_try_counter = 0
     perp_1 = 10
     perp_2 = 100
-    tried_all_epsilons = False
+    hdbscan_epsilon = hdbscan_epsilon_range[0]
     while embedding_tries <= max_embedding_tries:
         if embedding_tries == 1:
             internal_min_marker_cont_size = check_sustainable_contig_number(x_contigs, internal_min_marker_cont_size,
@@ -1231,13 +1230,14 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
             while ((max_contig_threshold < len(round_x_contigs) or len(round_x_contigs) < 5)
                    and internal_min_marker_cont_size > 0):
                 if len(round_x_contigs) < 5:
-                    logging.info('Less than 5 contigs to bin. Deacreasing min length threshold.')
+                    logging.info('Less than 5 contigs to bin. Deacreasing min length threshold to {0}.'.format(
+                        internal_min_marker_cont_size))
                     internal_min_marker_cont_size -= 125
                     if internal_min_marker_cont_size < 0:
                         internal_min_marker_cont_size = 0
                 else:
-                    logging.info('More than {0} contigs to bin. Increasing min length threshold.'.format(
-                        max_contig_threshold))
+                    logging.info('More than {0} contigs to bin. Increasing min length threshold to {1}.'.format(
+                        max_contig_threshold, internal_min_marker_cont_size))
                     internal_min_marker_cont_size += 250
                 round_x = [main_contig_data_dict.get(cont) for cont in round_leftovers_contig_list
                            if len(assembly_dict[cont]) >= internal_min_marker_cont_size]
@@ -1246,6 +1246,12 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                 round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list_backup 
                                                if len(assembly_dict[cont]) < internal_min_marker_cont_size]
             del round_leftovers_contig_list_backup
+
+        if len(round_x_contigs) == 0:
+            logging.info('No more contigs left after min length threshold adjustment. Exiting.'.format(
+                len(round_x_contigs), len(round_leftovers_contig_list), internal_min_marker_cont_size,
+                max_contig_threshold))
+            break
 
         logging.info('Running with {0} contigs. Filtered {1} contigs using a min contig size of {2} to stay below'
                      ' {3} contigs'.format(len(round_x_contigs), len(round_leftovers_contig_list),
@@ -1341,12 +1347,10 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
 
         if embedding_tries > 1:
-            if hdbscan_epsilon < 0.50:
-                hdbscan_epsilon += 0.1
-                # tried_all_epsilons = False
+            if hdbscan_epsilon < hdbscan_epsilon_range[1]:
+                hdbscan_epsilon += 0.125
             else:
-                hdbscan_epsilon = 0.00
-                # tried_all_epsilons = True
+                hdbscan_epsilon = hdbscan_epsilon_range[0]
 
         # Find bins
         good_bins, final_init_clust_dict = binny_iterate(contig_data_df, threads, taxon_marker_sets, tigrfam2pfam_data,
