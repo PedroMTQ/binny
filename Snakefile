@@ -214,12 +214,13 @@ if not CONTIG_DEPTH:
         shell:
             """
             echo "Running BEDTools for average depth in each position" >> {log}
-            TMP_DEPTH=$(mktemp --tmpdir={TMPDIR} -t "depth_file_XXXXXX.txt")
+            # TMP_DEPTH=$(mktemp --tmpdir={TMPDIR} -t "depth_file_XXXXXX.txt")
+            TMP_DEPTH=$(mktemp -t depth_file_XXXXXX) # -d "{TMPDIR}_depth"
             genomeCoverageBed -ibam {input[0]} | grep -v "genome" > $TMP_DEPTH
             echo "Depth calculation done" >> {log}
 
             ## This method of depth calculation was adapted and modified from the CONCOCT code
-            perl {SRCDIR}/calcAvgCoverage.pl $TMP_DEPTH {input[1]} > {output}
+            $CONDA_PREFIX/bin/perl {SRCDIR}/calcAvgCoverage.pl $TMP_DEPTH {input[1]} > {output}
             echo "Remove the temporary file" >> {log}
             rm $TMP_DEPTH
             """
@@ -247,10 +248,12 @@ rule annotate:
     message: "annotate: Running prokkaP."
     shell:
         """
-        # export PERL5LIB=$CONDA_PREFIX/lib/site_perl/5.26.2
-        # export LC_ALL=en_US.utf-8
+        export PERL5LIB=$CONDA_PREFIX/lib/site_perl/5.26.2
+        # PERL_LOCAL_LIB_ROOT= cpanm List::Util
+        export LC_ALL=en_US.utf-8
+        env | grep PERL
         # perl -MCPAN -e 'recompile()'
-	    {BINDIR}/prokkaP --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --tmpdir {TMPDIR} --prefix prokka\
+	    $CONDA_PREFIX/bin/perl {BINDIR}/prokkaP --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --tmpdir {TMPDIR} --prefix prokka\
 	                     --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
 	    # prokka --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --tmpdir {TMPDIR} --prefix prokka\
 	    #        --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1

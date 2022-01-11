@@ -836,7 +836,7 @@ while (<$PRODIGAL>) {
         if ($rna->seq_id eq $sid and $cds->overlaps($rna)) {
           $overlap = $rna;
 	  last;
-        }	
+        }
       }
     }
     # mitochondria are highly packed, so don't exclude as CDS/tRNA often overlap.
@@ -1480,7 +1480,7 @@ for my $sid (@seq) {
         }
       }else{
         $faa_fh->write_seq($seq);
-      } 
+      }
     }
     if ($f->primary_tag =~ m/^(CDS|rRNA|tmRNA|tRNA|misc_RNA)$/) {
       $ffn_fh->write_seq($p);
@@ -1925,7 +1925,7 @@ sub setOptions {
     #AHB{OPT=>"nogbk!",  VAR=>\$nogbk, DEFAULT=>0, DESC=>"Don't create GeneBank file"},
     {OPT=>"rnammer!",  VAR=>\$rnammer, DEFAULT=>0, DESC=>"Prefer RNAmmer over Barrnap for rRNA prediction"},
     #AHB{OPT=>"prodigalraw!",  VAR=>\$prodigalraw, DEFAULT=>0, DESC=>"Save raw prodigal output (runs prodigal again)"},
-    {OPT=>"enforceNameLength!",  VAR=>\$enforceLength, DEFAULT=>0, DESC=>"Enforce 37 character ID length"}, # added by AHB to allow longer contig names  
+    {OPT=>"enforceNameLength!",  VAR=>\$enforceLength, DEFAULT=>0, DESC=>"Enforce 37 character ID length"}, # added by AHB to allow longer contig names
     {OPT=>"tmpdir=s",  VAR=>\$tmpdir, DEFAULT=>'', DESC=>"Temporaty folder for parallelization [auto]"},
 # added by AHB to remove clutter from intermediary
 );
