@@ -36,8 +36,8 @@ elif sys.platform == "darwin":
     binny_env_path = os.path.join(ENVDIR, "binny_macos.yaml")
     fasta_prep_env_path = os.path.join(ENVDIR, "fasta_prep_macos.yaml")
     mantis_env_path = os.path.join(ENVDIR, "mantis_env_macos.yaml")
-    # prokka_env_path = os.path.join(ENVDIR, "prokka_macos.yaml")
-    prokka_env_path = os.path.join(ENVDIR, "prokka_macos_conda_package.yaml")
+    prokka_env_path = os.path.join(ENVDIR, "prokka_macos.yaml")
+    # prokka_env_path = os.path.join(ENVDIR, "prokka_macos_conda_package.yaml")
     mapping_env_path = os.path.join(ENVDIR, "mapping_macos.yaml")
 else:
     raise Exception ('OS not supported')
@@ -256,10 +256,12 @@ rule annotate:
         export LC_ALL=en_US.utf-8
         env | grep PERL
         # perl -MCPAN -e 'recompile()'
-	    # $CONDA_PREFIX/bin/perl {BINDIR}/prokkaP --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --tmpdir {TMPDIR} --prefix prokka\
-	    #                  --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
-	    prokka --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --tmpdir {TMPDIR} --prefix prokka\
-	           --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
+        
+	    $CONDA_PREFIX/bin/perl {BINDIR}/prokkaP --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ \
+	                           --tmpdir {TMPDIR} --prefix prokka --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
+	                           
+	    # prokka --dbdir $CONDA_PREFIX/db --force --outdir intermediary/ --tmpdir {TMPDIR} --prefix prokka\
+	    #        --noanno --cpus {threads} --metagenome {input[0]} >> {log} 2>&1
         
 	    # Prokka gives a gff file with a long header and with all the contigs at the bottom.
 	    # The command below keeps only the gff table.
