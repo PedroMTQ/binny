@@ -20,7 +20,7 @@ prokka_checkm_marker_hmm_out = snakemake.input['hmm_markers']
 functions = snakemake.params['py_functions']
 min_purity = int(snakemake.params['purity'])
 min_completeness = int(snakemake.params['completeness'])
-kmers = snakemake.params['kmers']
+kmer_sizes = [int(kmer) for kmer in snakemake.params['kmers'].split(',')]
 min_contig_length = int(snakemake.params['cutoff'])
 min_marker_contig_length = int(snakemake.params['cutoff_marker'])
 max_contig_threshold = float(snakemake.params['max_n_contigs'])
@@ -29,7 +29,7 @@ tsne_early_exag_iterations = int(snakemake.params['tsne_early_exag_iterations'])
 tsne_main_iterations = int(snakemake.params['tsne_main_iterations'])
 include_depth_initial = snakemake.params['include_depth_initial']
 include_depth_main = snakemake.params['include_depth_main']
-hdbscan_epsilon_range = float(snakemake.params['hdbscan_epsilon_range'])
+hdbscan_epsilon_range = [float(epsilon) for epsilon in snakemake.params['hdbscan_epsilon_range'].split(',')]
 hdbscan_min_samples = int(snakemake.params['hdbscan_min_samples'])
 dist_metric = snakemake.params['distance_metric']
 
@@ -88,7 +88,6 @@ contig_rrna_crispr_region_dict = gff2low_comp_feature_dict(annot_file)
 mask_rep_featrues(contig_rrna_crispr_region_dict, contig_list)  # Disabled for v016
 
 # Get length normalized k-mer frequencies.
-kmer_sizes = [int(kmer) for kmer in kmers.split(',')]
 
 start = timer()
 kfreq_array = get_contig_kmer_matrix(contig_list, kmer_sizes, threads)
