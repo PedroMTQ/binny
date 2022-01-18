@@ -121,6 +121,7 @@ elif [ "$INITIAL" = true ]; then
     curl -L https://github.com/PedroMTQ/UniFunc/archive/refs/tags/1.1.zip  --output $DIR/workflow/bin/unifunc.zip
     unzip -q $DIR/workflow/bin/unifunc.zip -d $DIR/workflow/bin/ && mv $DIR/workflow/bin/UniFunc-1.1 \
      $DIR/workflow/bin/mantis/Resources/UniFunc && rm $DIR/workflow/bin/unifunc.zip
+    echo "Initializing conda environments."
     snakemake $SNAKEMAKE_EXTRA_ARGUMENTS --verbose --cores 1 -s $DIR/Snakefile --conda-create-envs-only --use-conda \
               --conda-prefix $DIR/conda --local-cores 1 --configfile $CONFIGFILE
     snakemake $SNAKEMAKE_EXTRA_ARGUMENTS --verbose --cores 1 -s $DIR/Snakefile --conda-create-envs-only --use-conda --conda-prefix $DIR/conda --local-cores 1 --configfile $CONFIGFILE
@@ -132,7 +133,26 @@ elif [ "$INITIAL" = true ]; then
       then
       DB_PATH=${DIR}/$DB_PATH
     fi
-    echo "Initializing conda environments."
+    # Get Mantis and binny conda envs
+    for i in ${DIR}/conda/*.yaml; do
+      env_name=$(head -n 1 ${i} | cut -d' ' -f2)
+      if [[ ${env_name} == 'mantis_env' ]]; then
+        mantis_env=$(basename -s .yaml ${i})
+      elif [[ ${env_name} == 'py_binny_linux' ]]; then
+        binny_env=$(basename -s .yaml ${i})
+      fi
+    done
+    echo "Installing opt-SNE."
+    git clone https://github.com/omiq-ai/Multicore-opt-SNE.git $DIR/workflow/bin
+    conda activate ${DIR}/conda/${binny_env}
+    conda install -c anaconda cmake
+    cd $DIR/workflow/bin/Multicore-opt-SNE
+    pip install .
+    python setup.py build
+    cp Multicore-opt-SNE/build/lib.linux-x86_64-3.8/MulticoreTSNE/libtsne_multicore.so Multicore-opt-SNE/MulticoreTSNE
+    cd $DIR
+    conda deactivate
+    echo "Setting up Mantis with the CheckM databases"
     sed -i -e "s|\#nog_ref_folder\=|nog_ref_folder=NA|g" \
            -e "s|\#pfam_ref_folder\=|pfam_ref_folder=NA|g" \
            -e "s|\#kofam_ref_folder\=|kofam_ref_folder=NA|g" \
@@ -141,13 +161,7 @@ elif [ "$INITIAL" = true ]; then
            -e "s|\#tcdb_ref_folder\=|tcdb_ref_folder=NA|g" \
            -e "s|\#custom_ref\=path\/to\/hmm/custom1\.hmm|custom_ref=${DIR}/database/hmms/checkm_tf/checkm_filtered_tf.hmm\ncheckm_filtered_tf_weight=0.5\ncustom_ref=${DIR}/database/hmms/checkm_pf/checkm_filtered_pf.hmm\ncheckm_filtered_pf_weight=1|g" \
            ${DIR}/workflow/bin/mantis/MANTIS.config
-    for i in ${DIR}/conda/*.yaml; do
-      env_name=$(head -n 1 ${i} | cut -d' ' -f2)
-      if [[ ${env_name} == 'mantis_env' ]]; then
-        mantis_env=$(basename -s .yaml ${i})
-      fi
-    done
-    echo "Setting up Mantis with the CheckM databases"
+
     conda activate ${DIR}/conda/${mantis_env}
     # Make sure a compiler for cython is available
     if ! [ -x "$(command -v gcc)" ]; then

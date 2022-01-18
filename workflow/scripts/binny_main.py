@@ -74,6 +74,7 @@ logging.info('Looking for single contig bins.')
 single_contig_bins = get_single_contig_bins(annot_df, all_good_bins, n_dim, taxon_marker_sets, tigrfam2pfam_data,
                                             threads)
 logging.info('Found {0} single contig bins.'.format(len(single_contig_bins)))
+# single_contig_bins = []
 
 # Load assembly and mask rRNAs and CRISPR arrays
 contig_list = [[contig] + [seq] for contig, seq in assembly_dict.items() if (len(seq) >= min_contig_length
@@ -99,6 +100,10 @@ x = np.array([c_kfreq[1:] for c_kfreq in kfreq_array[1:] if not sum(c_kfreq[1:])
 x_contigs = [c_kfreq[0] for c_kfreq in kfreq_array[1:] if not sum(c_kfreq[1:]) == 0]
 
 main_contig_data_dict = {cont: seq for cont, seq in zip(x_contigs, x)}
+
+with open('kmer_freqs.tsv', 'w') as f:
+    for k, v in main_contig_data_dict.items():
+        f.write('{0}\t{1}\n'.format(str(k), '\t'.join([str(i) for i in v])))
 
 # Load depth data
 depth_dict = load_depth_dict(mg_depth_file)
@@ -133,10 +138,10 @@ for contig, k_freq in main_contig_data_dict.items():
                                   'k-mer_freqs': ';'.join([str(k) for k in list(k_freq)]),
                                   'depths': ';'.join([str(d) for d in list(depth_dict.get(contig))])}
 
-compression_opts = dict(method='zip', archive_name='contig_data.tsv')  
+compression_opts = dict(method='zip', archive_name='contig_data.tsv')
 
 contig_data_df = pd.DataFrame.from_dict(all_cont_data_dict, orient='index', columns=['bin', 'k-mer_freqs', 'depths'])
 
-contig_data_df.to_csv('contig_data.zip', header=True, index=True, index_label='contig', chunksize=1000, compression=compression_opts, sep='\t')  
+contig_data_df.to_csv('contig_data.zip', header=True, index=True, index_label='contig', chunksize=1000, compression=compression_opts, sep='\t')
 
 logging.info('Run finished.')

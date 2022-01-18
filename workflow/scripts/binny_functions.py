@@ -6,6 +6,7 @@ Created on Wed Feb 22 10:50:35 2021
 import itertools
 import logging
 import re
+import time
 from pathlib import Path
 from timeit import default_timer as timer
 
@@ -19,9 +20,17 @@ from joblib import parallel_backend, Parallel, delayed
 from mpl_toolkits.mplot3d import Axes3D
 from openTSNE import TSNEEmbedding, affinity
 from openTSNE import initialization
+# from openTSNE import kl_divergence
 from skbio.stats.composition import clr, multiplicative_replacement
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
+
+import sys
+sys.path.append('/home/parallels/local_tools/Multicore-opt-SNE')
+import os
+from MulticoreTSNE import MulticoreTSNE as TSNE
+import matplotlib.cm as cm
+import multiprocessing
 
 
 def unify_multi_model_genes(gene, markers='essential'):
@@ -444,7 +453,7 @@ def divide_clusters_by_depth(ds_clstr_dict, threads, marker_sets_graph, tigrfam2
             sub_clstr_res = Parallel(n_jobs=threads)\
                                     (delayed(get_sub_clusters)(cluster_dict_list, inner_max_threads, marker_sets_graph,
                                                                tigrfam2pfam_data_dict, purity_threshold=min_purity,
-                                                               completeness_threshold=min_completeness, 
+                                                               completeness_threshold=min_completeness,
                                                                pk=pk, cluster_mode=cluster_mode,
                                                                include_depth=include_depth,
                                                                hdbscan_epsilon=hdbscan_epsilon,
@@ -549,7 +558,7 @@ def write_scatterplot(df, hue, file_path=None):
         scatter_plot = sns.scatterplot(data=df, x="dim1", y="dim2", hue=hue, sizes=2.5, s=2., palette=palette)
         scatter_plot.legend(fontsize=3, title="Clusters", title_fontsize=4, ncol=1,
                             bbox_to_anchor=(1.01, 1), borderaxespad=0)
-        plt.show()
+        # plt.show()
         if file_path:
             scatter_plot.get_figure().savefig(file_path)
             scatter_plot.get_figure().clf()  # Clear figure
@@ -794,6 +803,10 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
 
         logging.info('Initial clustering with HDBSCAN cluster selection epsilon of {0} '
                      'resulted in {1} clusters.'.format(hdbscan_epsilon, len(set(labels))))
+
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        write_scatterplot(leftovers_df, labels,
+                          '{0}_HDBSCAN_label_scatter_plot_eps_{1}_it_{2}.pdf'.format(timestr, hdbscan_epsilon, embedding_iteration))
 
         if n_iterations == 1:
             for cluster in init_clust_dict:
@@ -1204,8 +1217,8 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
     embedding_tries = 1
     internal_completeness = starting_completeness
     final_try_counter = 0
-    perp_1 = 10
-    perp_2 = 100
+    perp_1 = 30  # 10
+    perp_2 = 200 # 100
     hdbscan_epsilon = hdbscan_epsilon_range[0]
     while embedding_tries <= max_embedding_tries:
         if embedding_tries == 1:
@@ -1243,7 +1256,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                            if len(assembly_dict[cont]) >= internal_min_marker_cont_size]
                 round_x_contigs = [cont for cont in round_leftovers_contig_list
                                    if len(assembly_dict[cont]) >= internal_min_marker_cont_size]
-                round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list_backup 
+                round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list_backup
                                                if len(assembly_dict[cont]) < internal_min_marker_cont_size]
             del round_leftovers_contig_list_backup
 
@@ -1268,7 +1281,10 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         round_x = multiplicative_replacement(round_x)
         # Clr transform
         x_scaled = clr(round_x)
-        x_scaled = np.concatenate([round_x_depth, x_scaled], axis=1)        
+        x_scaled = np.concatenate([round_x_depth, x_scaled], axis=1)
+
+        # feature_matrix = ['\t'.join([round_x_contigs]  + [str(i) for i in x_scaled)]
+
 
         # Manifold learning and dimension reduction.
         logging.info('Running manifold learning and dimension reduction.')
@@ -1282,7 +1298,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         pca = PCA(n_components=n_comp, random_state=0)
         transformer = pca.fit(x_scaled)
         sum_var_exp = sum(pca.explained_variance_ratio_)
-        while sum_var_exp <= 0.75 and n_pca_tries <= 100 and len(pca.explained_variance_ratio_) <= 70 \
+        while sum_var_exp <= 0.75 and n_pca_tries <= 100 and len(pca.explained_variance_ratio_) <= 75 \
                 and not len(round_x_contigs) <= n_comp:
             pca = PCA(n_components=n_comp, random_state=0)
             transformer = pca.fit(x_scaled)
@@ -1292,38 +1308,37 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         logging.info('PCA stats: Dimensions: {0}; Amount of variation'
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
-        
-        if embedding_tries > 1:
-            if perp_1 < 20:
-                perp_1 += 2
-            else:
-                perp_1 = 10
-            if perp_2 < 130:
-                perp_2 += 5
-            else:
-                perp_2 = 100
 
-        perplexities = [perp_1, perp_2]
+        tsne = TSNE(n_jobs=threads, verbose=50, random_state=0, auto_iter=True, perplexity=5,
+                    learning_rate=int(len(x_pca)/8))  # , learning_rate=len(data)/12, auto_iter_end=1000, early_exaggeration=early_exag,
+        tsne_result = tsne.fit_transform(x_pca)
+        embedding_multiscale = tsne_result
 
-        early_exag = int(len(round_x_contigs) / 100)
-        learning_rate = int(len(round_x_contigs) / 12)
-        if learning_rate < 200:
-            learning_rate = 200
-        if early_exag < 12:
-            early_exag = 12
-        logging.info('Running t-SNE dimensionality-reduction with perplexities {0} and {1}.'.format(perplexities[0],
-                                                                                                    perplexities[1]))
-        affinities_multiscale_mixture = affinity.Multiscale(x_pca, perplexities=perplexities, metric="manhattan",
-                                                            n_jobs=threads, random_state=0, verbose=0)
-        init = initialization.pca(x_pca, random_state=0, verbose=0)
-        embedding = TSNEEmbedding(init, affinities_multiscale_mixture, negative_gradient_method="fft", n_jobs=threads,
-                                  random_state=0, verbose=0)
-        embedding1 = embedding.optimize(n_iter=tsne_early_exag_iterations, exaggeration=early_exag,
-                                        learning_rate=learning_rate, momentum=0.5, n_jobs=threads, verbose=0)
-        embedding2 = embedding1.optimize(n_iter=tsne_main_iterations, exaggeration=1, learning_rate=learning_rate,
-                                         momentum=0.8, n_jobs=threads, verbose=0)
-        embedding_multiscale = embedding2.view(np.ndarray)
         logging.info('Finished t-SNE dimensionality-reduction.')
+
+        ########################################################################
+        # Load gs map
+        gs = '/media/psf/Home/Downloads/c2_t_oral_s17_gsa_mapping.tsv'
+        cont2gen_gs_dict = {}
+        with open(gs, 'r') as f:
+            next(f)
+            for line in f:
+                line = line.strip('\n \t').split('\t')
+                cont2gen_gs_dict[line[0]] = line[1]
+        # Plot gs
+        print('Plotting with gold standard genomes')
+        n_dim = 2
+        dim_range = [i + 1 for i in range(n_dim)]
+        gs_coord_df = pd.DataFrame(data=embedding_multiscale, index=None,
+                                   columns=['dim' + str(i) for i in dim_range])
+        gs_coord_df['contig'] = round_x_contigs
+        gs_coord_df['cluster'] = [cont2gen_gs_dict [contig] for contig in round_x_contigs]
+        gs_coord_df = gs_coord_df[['contig'] + ['dim' + str(i) for i in dim_range] + ['cluster']]
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        write_scatterplot(gs_coord_df, gs_coord_df['cluster'],
+                          '{0}_gs_label_scatter_plot_n_contigs_{1}_it_{2}.pdf'.format(timestr, len(round_x_contigs),
+                                                                                      embedding_tries))
+        ########################################################################
 
         # Create coordinate df.
         dim_range = [i + 1 for i in range(n_dim)]
@@ -1363,7 +1378,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                                                          dist_metric=dist_metric)
 
         logging.info('Good bins this embedding iteration: {0}.'.format(len(good_bins.keys())))
-        
+
         if not list(good_bins.keys()) and internal_completeness > min_completeness and final_try_counter == 0:
             internal_completeness -= 5
             if 80 < internal_completeness <= 85:
@@ -1389,7 +1404,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         elif not list(good_bins.keys()):
             logging.info('Reached min completeness and found no more bins. Exiting embedding iteration')
             break
-    
+
         prev_round_internal_min_marker_cont_size = internal_min_marker_cont_size
 
         round_clust_dict = {**good_bins, **final_init_clust_dict}
@@ -1416,7 +1431,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                           ' Removing them.'.format(len(round_leftovers['contig'].tolist())
                                                    - len(set(round_leftovers['contig'].tolist()))))
             round_leftovers.drop_duplicates(subset=['contig'])
-        
+
         if list(good_bins.keys()):
             good_bin_contig_df = contig_df_from_cluster_dict(good_bins)
             round_leftovers = round_leftovers[~round_leftovers['contig'].isin(good_bin_contig_df['contig'].tolist())]
