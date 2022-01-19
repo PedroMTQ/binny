@@ -1322,10 +1322,18 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
+        perp_range = [4,6]
+        perp = learning_rate_factor_range[0]
+
         learning_rate_factor_range = [8,12]
         learning_rate_factor = learning_rate_factor_range[0]
 
         if embedding_tries > 1:
+            if perp < perp_range[1]:
+                perp += 1
+            else:
+                perp = perp_range[0]
+
             if learning_rate_factor < learning_rate_factor_range[1]:
                 learning_rate_factor += 2
             else:
