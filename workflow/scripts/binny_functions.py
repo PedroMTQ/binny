@@ -1232,9 +1232,9 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
             round_x_contigs = [cont for cont in x_contigs
                                if len(assembly_dict[cont]) >= internal_min_cont_size
                                or (annotation_dict.get(cont) and len(assembly_dict[cont]) >= internal_min_marker_cont_size)]
-            round_leftovers_contig_list = [cont for cont in x_contigs
-                                           if len(assembly_dict[cont]) < internal_min_cont_size
-                                           or (annotation_dict.get(cont) and len(assembly_dict[cont]) < internal_min_marker_cont_size)]
+            round_leftovers_contig_list = [cont for cont in x_contigs if cont not in round_x_contigs]
+                                        #    if len(assembly_dict[cont]) < internal_min_cont_size
+                                        #    or (annotation_dict.get(cont) and len(assembly_dict[cont]) < internal_min_marker_cont_size)]
         else:
             internal_min_marker_cont_size = check_sustainable_contig_number(round_leftovers_contig_list,
                                                                             internal_min_marker_cont_size,
@@ -1247,9 +1247,9 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
             round_x_contigs = [cont for cont in round_leftovers_contig_list
                                if len(assembly_dict[cont]) >= internal_min_cont_size
                                or (annotation_dict.get(cont) and len(assembly_dict[cont]) >= internal_min_marker_cont_size)]
-            round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list
-                                           if len(assembly_dict[cont]) < internal_min_cont_size
-                                           or (annotation_dict.get(cont) and len(assembly_dict[cont]) < internal_min_marker_cont_size)]
+            round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list if cont not in round_x_contigs]
+                                        #    if len(assembly_dict[cont]) < internal_min_cont_size
+                                        #    or (annotation_dict.get(cont) and len(assembly_dict[cont]) < internal_min_marker_cont_size)]
             round_leftovers_contig_list_backup = round_leftovers_contig_list.copy()
             while ((max_contig_threshold < len(round_x_contigs) or len(round_x_contigs) < 5)
                    and internal_min_marker_cont_size > 0):
