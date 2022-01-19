@@ -1210,9 +1210,9 @@ def check_sustainable_contig_number(contig_list, min_val, assembly_dict, contig_
 def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completeness, min_purity, min_completeness,
                         threads, n_dim, annot_file, mg_depth_file, single_contig_bins, taxon_marker_sets,
                         tigrfam2pfam_data, main_contig_data_dict, assembly_dict, max_contig_threshold=3.5e5,
-                        tsne_early_exag_iterations=250, tsne_main_iterations=750, internal_min_marker_cont_size=0,
+                        tsne_early_exag_iterations=250, tsne_main_iterations=750, internal_min_cont_size=0, internal_min_marker_cont_size=0,
                         include_depth_initial=False, max_embedding_tries=50, include_depth_main=True,
-                        hdbscan_epsilon_range=[0, 0.5], hdbscan_min_samples=2, dist_metric='manhattan'):
+                        hdbscan_epsilon_range=[0, 0.5], hdbscan_min_samples=2, dist_metric='manhattan', annotation_dict=None):
     np.random.seed(0)
     embedding_tries = 1
     internal_completeness = starting_completeness
@@ -1224,21 +1224,32 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         if embedding_tries == 1:
             internal_min_marker_cont_size = check_sustainable_contig_number(x_contigs, internal_min_marker_cont_size,
                                                                             assembly_dict, max_contig_threshold)
+            if internal_min_marker_cont_size > internal_min_cont_size:
+                internal_min_cont_size = internal_min_marker_cont_size
             round_x = [main_contig_data_dict.get(cont) for cont in x_contigs
-                       if len(assembly_dict[cont]) >= internal_min_marker_cont_size]
-            round_x_contigs = [cont for cont in x_contigs if len(assembly_dict[cont]) >= internal_min_marker_cont_size]
+                       if len(assembly_dict[cont]) >= internal_min_cont_size
+                       or (annotation_dict.get(cont) and len(assembly_dict[cont]) >= internal_min_marker_cont_size)]
+            round_x_contigs = [cont for cont in x_contigs
+                               if len(assembly_dict[cont]) >= internal_min_cont_size
+                               or (annotation_dict.get(cont) and len(assembly_dict[cont]) >= internal_min_marker_cont_size)]
             round_leftovers_contig_list = [cont for cont in x_contigs
-                                           if len(assembly_dict[cont]) < internal_min_marker_cont_size]
+                                           if len(assembly_dict[cont]) < internal_min_cont_size
+                                           or (annotation_dict.get(cont) and len(assembly_dict[cont]) < internal_min_marker_cont_size)]
         else:
             internal_min_marker_cont_size = check_sustainable_contig_number(round_leftovers_contig_list,
                                                                             internal_min_marker_cont_size,
                                                                             assembly_dict, max_contig_threshold)
+            if internal_min_marker_cont_size > internal_min_cont_size:
+                internal_min_cont_size = internal_min_marker_cont_size
             round_x = [main_contig_data_dict.get(cont) for cont in round_leftovers_contig_list
-                       if len(assembly_dict[cont]) >= internal_min_marker_cont_size]
+                       if len(assembly_dict[cont]) >= internal_min_cont_size
+                       or (annotation_dict.get(cont) and len(assembly_dict[cont]) >= internal_min_marker_cont_size)]
             round_x_contigs = [cont for cont in round_leftovers_contig_list
-                               if len(assembly_dict[cont]) >= internal_min_marker_cont_size]
+                               if len(assembly_dict[cont]) >= internal_min_cont_size
+                               or (annotation_dict.get(cont) and len(assembly_dict[cont]) >= internal_min_marker_cont_size)]
             round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list
-                                           if len(assembly_dict[cont]) < internal_min_marker_cont_size]
+                                           if len(assembly_dict[cont]) < internal_min_cont_size
+                                           or (annotation_dict.get(cont) and len(assembly_dict[cont]) < internal_min_marker_cont_size)]
             round_leftovers_contig_list_backup = round_leftovers_contig_list.copy()
             while ((max_contig_threshold < len(round_x_contigs) or len(round_x_contigs) < 5)
                    and internal_min_marker_cont_size > 0):
@@ -1266,8 +1277,8 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                 max_contig_threshold))
             break
 
-        logging.info('Running with {0} contigs. Filtered {1} contigs using a min contig size of {2} to stay below'
-                     ' {3} contigs'.format(len(round_x_contigs), len(round_leftovers_contig_list),
+        logging.info('Running with {0} contigs. Filtered {1} contigs using a min contig size of {2} and min marker cont size of {3} to stay below'
+                     ' {4} contigs'.format(len(round_x_contigs), len(round_leftovers_contig_list), internal_min_cont_size,
                                            internal_min_marker_cont_size, max_contig_threshold))
 
         if len(round_x_contigs) != len(round_x):
@@ -1288,29 +1299,40 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
         # Manifold learning and dimension reduction.
         logging.info('Running manifold learning and dimension reduction.')
-        n_pca_tries = 0
 
-        if len(round_x_contigs) > 30:
-            n_comp = 30
+        if len(round_x_contigs) > 30: # 30
+            n_comp = 30 # 30
         else:
             n_comp = len(round_x_contigs) - 1
 
         pca = PCA(n_components=n_comp, random_state=0)
         transformer = pca.fit(x_scaled)
         sum_var_exp = sum(pca.explained_variance_ratio_)
+        n_pca_tries = 1
+        logging.info(f'Initial PCA finished: n_dim={n_comp}, var_expl: {sum_var_exp}.')
         while sum_var_exp <= 0.75 and n_pca_tries <= 100 and len(pca.explained_variance_ratio_) <= 75 \
                 and not len(round_x_contigs) <= n_comp:
             pca = PCA(n_components=n_comp, random_state=0)
             transformer = pca.fit(x_scaled)
             sum_var_exp = sum(pca.explained_variance_ratio_)
-            n_comp += 2
+            n_comp += 2  # 2
             n_pca_tries += 1
+            logging.info(f'PCA iteration {n_pca_tries} finished: n_dim={n_comp}, var_expl: {sum_var_exp}.')
         logging.info('PCA stats: Dimensions: {0}; Amount of variation'
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
+        learning_rate_factor_range = [8,12]
+        learning_rate_factor = learning_rate_factor_range[0]
+
+        if embedding_tries > 1:
+            if learning_rate_factor < learning_rate_factor_range[1]:
+                learning_rate_factor += 2
+            else:
+                learning_rate_factor = learning_rate_factor_range[0]
+
         tsne = TSNE(n_jobs=threads, verbose=50, random_state=0, auto_iter=True, perplexity=5,
-                    learning_rate=int(len(x_pca)/8))  # , learning_rate=len(data)/12, auto_iter_end=1000, early_exaggeration=early_exag,
+                    learning_rate=int(len(x_pca)/learning_rate_factor))  # , learning_rate=len(data)/12, auto_iter_end=1000, early_exaggeration=early_exag,
         tsne_result = tsne.fit_transform(x_pca)
         embedding_multiscale = tsne_result
 
@@ -1363,7 +1385,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
         if embedding_tries > 1:
             if hdbscan_epsilon < hdbscan_epsilon_range[1]:
-                hdbscan_epsilon += 0.125
+                hdbscan_epsilon += 1  # 0.125
             else:
                 hdbscan_epsilon = hdbscan_epsilon_range[0]
 
@@ -1392,9 +1414,9 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                     min_purity = 95
             logging.info('Found no good bins. Minimum completeness lowered to {0},'
                          ' minimum purity is {1}.'.format(internal_completeness, min_purity))
-        elif not list(good_bins.keys()) and final_try_counter <= 4\
-                and not internal_min_marker_cont_size > prev_round_internal_min_marker_cont_size:
-            internal_min_marker_cont_size = 2500 - 500 * final_try_counter
+        elif not list(good_bins.keys()) and final_try_counter <= 10\
+                and not prev_round_internal_min_marker_cont_size == 0:  # internal_min_marker_cont_size > prev_round_internal_min_marker_cont_size:
+            internal_min_marker_cont_size = 2000 - 500 * final_try_counter
             final_try_counter += 1
             internal_completeness = 80
             min_purity = 90

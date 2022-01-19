@@ -77,13 +77,15 @@ logging.info('Found {0} single contig bins.'.format(len(single_contig_bins)))
 # single_contig_bins = []
 
 # Load assembly and mask rRNAs and CRISPR arrays
-contig_list = [[contig] + [seq] for contig, seq in assembly_dict.items() if (len(seq) >= min_contig_length
-                                                                             or (annot_dict.get(contig)
-                                                                             and len(seq) >= min_marker_contig_length))
-                                                                            and contig not in single_contig_bins]
+# contig_list = [[contig] + [seq] for contig, seq in assembly_dict.items() if (len(seq) >= min_contig_length
+#                                                                              or (annot_dict.get(contig)
+#                                                                              and len(seq) >= min_marker_contig_length))
+#                                                                             and contig not in single_contig_bins]
+#
+# logging.info('{0} contigs match length threshold of {1}bp or contain marker genes and'
+#              ' have a size of at least {2}bp'.format(len(contig_list), min_contig_length, min_marker_contig_length))
 
-logging.info('{0} contigs match length threshold of {1}bp or contain marker genes and'
-             ' have a size of at least {2}bp'.format(len(contig_list), min_contig_length, min_marker_contig_length))
+contig_list = [[contig] + [seq] for contig, seq in assembly_dict.items() if contig not in single_contig_bins]
 
 contig_rrna_crispr_region_dict = gff2low_comp_feature_dict(annot_file)
 mask_rep_featrues(contig_rrna_crispr_region_dict, contig_list)  # Disabled for v016
@@ -114,10 +116,10 @@ all_good_bins, contig_data_df_org = iterative_embedding(x_contigs, depth_dict, a
                                                         mg_depth_file, single_contig_bins, taxon_marker_sets,
                                                         tigrfam2pfam_data, main_contig_data_dict, assembly_dict,
                                                         max_contig_threshold, tsne_early_exag_iterations,
-                                                        tsne_main_iterations, min_marker_contig_length,
+                                                        tsne_main_iterations, min_contig_length, min_marker_contig_length,
                                                         include_depth_initial, max_embedding_tries,
                                                         include_depth_main, hdbscan_epsilon_range,
-                                                        hdbscan_min_samples, dist_metric)
+                                                        hdbscan_min_samples, dist_metric, annot_dict)
 
 all_contigs = []
 for bin in all_good_bins:
