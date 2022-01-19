@@ -1331,9 +1331,12 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
             else:
                 learning_rate_factor = learning_rate_factor_range[0]
 
+        learning_rate = int(len(x_pca)/learning_rate_factor)
+        logging.info('optSNE learning rate: {0}.'.format(learning_rate))
+
         tsne = TSNE(n_jobs=threads, verbose=50, random_state=0, auto_iter=True, perplexity=5,
-                    learning_rate=int(len(x_pca)/learning_rate_factor))  # , learning_rate=len(data)/12, auto_iter_end=1000, early_exaggeration=early_exag,
-        tsne_result = tsne.fit_transform(x_pca)
+                    learning_rate=learning_rate)  # , learning_rate=len(data)/12, auto_iter_end=1000, early_exaggeration=early_exag,
+        tsne_result = tsne.fit(x_pca)
         embedding_multiscale = tsne_result
 
         logging.info('Finished t-SNE dimensionality-reduction.')
