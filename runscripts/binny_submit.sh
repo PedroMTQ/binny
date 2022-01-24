@@ -147,6 +147,9 @@ elif [ "$INITIAL" = true ]; then
     conda activate ${DIR}/conda/${binny_env}
     conda install -c anaconda cmake
     cd $DIR/workflow/bin/Multicore-opt-SNE
+    sed -i -e "s|auto_iter_buffer_ee = 15|auto_iter_buffer_ee = 30|g" \
+           -e "s|auto_iter_buffer_run = 15|auto_iter_buffer_run = 30|g" \
+           -e "s|auto_iter_ee_switch_buffer = 2|auto_iter_ee_switch_buffer = 4|g" multicore_tsne/tsne.cpp
     pip install .
     python setup.py build
     cp Multicore-opt-SNE/build/lib.linux-x86_64-3.8/MulticoreTSNE/libtsne_multicore.so Multicore-opt-SNE/MulticoreTSNE

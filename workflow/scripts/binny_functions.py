@@ -446,6 +446,8 @@ def divide_clusters_by_depth(ds_clstr_dict, threads, marker_sets_graph, tigrfam2
     no_progress = False
     split_contigs = []
 
+    already_found_list = []
+
     with parallel_backend("loky", inner_max_num_threads=inner_max_threads):
         while n_tries <= max_tries and chunks_to_process and not no_progress:
             logging.info('Clustering iteration: {0}.'.format(n_tries))
@@ -467,6 +469,12 @@ def divide_clusters_by_depth(ds_clstr_dict, threads, marker_sets_graph, tigrfam2
                             dict_cp.pop(output[1])
                             split_contigs.append(output[1])
                         dict_cp.update(output[0])
+
+            current_bins_found = [k for k, v in dict_cp.items() if v.get('purity', 0) >= min_purity
+                                  and v.get('completeness', 0) >= min_completeness and k not in already_found_list]
+            logging.info('Good bins this iteration: {0}'.format(len(current_bins_found)))
+            already_found_list += current_bins_found
+
             if sorted(previous_dict_keys) == sorted(list(dict_cp.keys())):
                 no_progress = True
                 continue
@@ -740,7 +748,7 @@ def split(a, n):
 
 
 def get_perp(n_data_points):
-    return int(np.log(n_data_points))
+    return int(np.log(n_data_points)/2)
 
 
 def gff2low_comp_feature_dict(annotation_file):
@@ -893,7 +901,7 @@ def asses_contig_completeness_purity(essential_gene_lol, n_dims, marker_sets_gra
         all_ess = contig_data[1]
         marker_set = choose_checkm_marker_set(all_ess, marker_sets_graph, tigrfam2pfam_data_dict)
         taxon, comp, pur = marker_set[0], marker_set[1], marker_set[2]
-        if pur > 0.85 and comp > 0.90:
+        if pur > 0.80 and comp > 0.80:
             bin_dict = {contig_data[0]: {'depth1': np.array([None]), 'contigs': np.array([contig_data[0]]),
                                         'essential': np.array(all_ess), 'purity': pur, 'completeness': comp,
                                          'taxon': taxon}}
@@ -1294,7 +1302,10 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         x_scaled = clr(round_x)
         x_scaled = np.concatenate([round_x_depth, x_scaled], axis=1)
 
-        # feature_matrix = ['\t'.join([round_x_contigs]  + [str(i) for i in x_scaled)]
+        feature_matrix = sorted(['\t'.join([c] + [str(i) for i in e]) for c, e in zip(round_x_contigs, x_scaled)])
+        with open(f'feature_matrix_it_{embedding_tries}.tsv', 'w') as f:
+            for i in feature_matrix:
+                f.write(i + '\n')
 
 
         # Manifold learning and dimension reduction.
@@ -1322,29 +1333,30 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
-        perp_range = [4,6]
-        perp = learning_rate_factor_range[0]
+        perp_range = [5, 60]  # [5, 30]
 
-        learning_rate_factor_range = [8,12]
-        learning_rate_factor = learning_rate_factor_range[0]
+        learning_rate_factor_range = [12, 6]  # [12, 12]
 
         if embedding_tries > 1:
             if perp < perp_range[1]:
-                perp += 1
+                perp += 55  # 25
             else:
                 perp = perp_range[0]
 
-            if learning_rate_factor < learning_rate_factor_range[1]:
-                learning_rate_factor += 2
+            if learning_rate_factor > learning_rate_factor_range[1]:
+                learning_rate_factor -= 6
             else:
                 learning_rate_factor = learning_rate_factor_range[0]
+        else:
+            learning_rate_factor = learning_rate_factor_range[0]
+            perp = perp_range[0]
 
         learning_rate = int(len(x_pca)/learning_rate_factor)
         logging.info('optSNE learning rate: {0}.'.format(learning_rate))
 
-        tsne = TSNE(n_jobs=threads, verbose=50, random_state=0, auto_iter=True, perplexity=5,
+        tsne = TSNE(n_jobs=threads, verbose=50, random_state=0, auto_iter=True, perplexity=perp,
                     learning_rate=learning_rate)  # , learning_rate=len(data)/12, auto_iter_end=1000, early_exaggeration=early_exag,
-        tsne_result = tsne.fit(x_pca)
+        tsne_result = tsne.fit_transform(x_pca)
         embedding_multiscale = tsne_result
 
         logging.info('Finished t-SNE dimensionality-reduction.')
@@ -1393,7 +1405,6 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         if embedding_tries == 1:
             contig_data_df_org = contig_data_df.copy()
 
-
         if embedding_tries > 1:
             if hdbscan_epsilon < hdbscan_epsilon_range[1]:
                 hdbscan_epsilon += 1  # 0.125
@@ -1428,6 +1439,10 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         elif not list(good_bins.keys()) and final_try_counter <= 10\
                 and not prev_round_internal_min_marker_cont_size == 0:  # internal_min_marker_cont_size > prev_round_internal_min_marker_cont_size:
             internal_min_marker_cont_size = 2000 - 500 * final_try_counter
+            if internal_min_marker_cont_size > 0:
+                internal_min_cont_size = internal_min_marker_cont_size
+            else:
+                internal_min_cont_size = 500
             final_try_counter += 1
             internal_completeness = 80
             min_purity = 90
