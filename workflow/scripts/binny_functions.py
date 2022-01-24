@@ -27,8 +27,10 @@ from sklearn.neighbors import KNeighborsClassifier
 
 import sys
 import os
+bin_dir = '/'.join(os.path.dirname(__file__).split('/')[:-1])
 sys.path.append('/home/parallels/local_tools/Multicore-opt-SNE')
-# sys.path.append('{0}/workflow/bin/Multicore-opt-SNE'.format(os.getcwd()))
+# sys.path.append('{0}/bin/Multicore-opt-SNE'.format(bin_dir))
+os.path.dirname(__file__)
 from MulticoreTSNE import MulticoreTSNE as TSNE
 import matplotlib.cm as cm
 import multiprocessing
@@ -171,7 +173,7 @@ def contig_df2cluster_dict(contig_info_df, dbscan_labels, use_noise=False):
     return cluster_dict
 
 
-def hdbscan_cluster(contig_data_df, pk=None, include_depth=False, n_jobs=1, hdbscan_epsilon=0.25, hdbscan_min_samples=2,
+def hdbscan_cluster(contig_data_df, pk=None, pk_factor=2, include_depth=False, n_jobs=1, hdbscan_epsilon=0.25, hdbscan_min_samples=2,
                     dist_metric='manhattan'):
     dims = [i for i in contig_data_df.columns if 'dim' in i and not '_' in i]
     depths = [i for i in contig_data_df.columns if 'depth' in i]
@@ -180,7 +182,7 @@ def hdbscan_cluster(contig_data_df, pk=None, include_depth=False, n_jobs=1, hdbs
     else:
         dim_df = contig_data_df.loc[:, dims + depths].to_numpy(dtype=np.float64)
     if not pk:
-        pk = get_perp(contig_data_df['contig'].size)
+        pk = get_perp(contig_data_df['contig'].size, pk_factor)
         if pk < len(dims) * 2:
             pk = len(dims) * 2
 
@@ -217,7 +219,7 @@ def run_initial_scan(contig_data_df, initial_cluster_mode, dbscan_threads, pk=No
         pk = get_perp(contig_data_df['contig'].size, pk_factor)
     if initial_cluster_mode == 'HDBSCAN' or not initial_cluster_mode:
         logging.info('Running initial scan with HDBSCAN.')
-        first_clust_dict, labels = hdbscan_cluster(contig_data_df, pk=pk, n_jobs=dbscan_threads,
+        first_clust_dict, labels = hdbscan_cluster(contig_data_df, pk=pk, pk_factor=pk_factor, n_jobs=dbscan_threads,
                                                    include_depth=include_depth, hdbscan_epsilon=hdbscan_epsilon,
                                                    hdbscan_min_samples=hdbscan_min_samples, dist_metric=dist_metric)
     return first_clust_dict, labels

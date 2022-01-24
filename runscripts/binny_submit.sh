@@ -153,7 +153,7 @@ elif [ "$INITIAL" = true ]; then
     pip install .
     which python
     python setup.py build
-    cp build/lib.linux-x86_64-3.8/MulticoreTSNE/libtsne_multicore.so Multicore-opt-SNE/MulticoreTSNE
+    cp build/lib.linux-x86_64-3.8/MulticoreTSNE/libtsne_multicore.so MulticoreTSNE
     cd $DIR
     conda deactivate
     echo "Setting up Mantis with the CheckM databases"
