@@ -63,6 +63,6 @@ binning:
     bin_quality:
       # Minimum value binny will lower completeness to while running. It will
       # start at 90.
-      completeness: 80
+      completeness: 90
       # Minimum purity for bins to be selected.
       purity: 85

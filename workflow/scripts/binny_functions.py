@@ -905,7 +905,7 @@ def asses_contig_completeness_purity(essential_gene_lol, n_dims, marker_sets_gra
         all_ess = contig_data[1]
         marker_set = choose_checkm_marker_set(all_ess, marker_sets_graph, tigrfam2pfam_data_dict)
         taxon, comp, pur = marker_set[0], marker_set[1], marker_set[2]
-        if pur > 0.80 and comp > 0.80:
+        if pur > 0.80 and comp > 0.85:
             bin_dict = {contig_data[0]: {'depth1': np.array([None]), 'contigs': np.array([contig_data[0]]),
                                         'essential': np.array(all_ess), 'purity': pur, 'completeness': comp,
                                          'taxon': taxon}}
@@ -1335,17 +1335,17 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
-        perp_range = [5, 30]  # [5, 30]
+        perp_range = [5, 60]  # [5, 30]
 
         learning_rate_factor_range = [12, 12]  # [12, 12]
 
         if embedding_tries > 1:
             if perp < perp_range[1]:
-                perp += 25 # 25
-                pk_factor = 4
+                perp += 55 # 25
+                pk_factor = 2
             else:
                 perp = perp_range[0]
-                pk_factor = 2
+                pk_factor = 1
 
             if learning_rate_factor > learning_rate_factor_range[1]:
                 learning_rate_factor -= 6
@@ -1445,7 +1445,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                          ' minimum purity is {1}.'.format(internal_completeness, min_purity))
         elif not list(good_bins.keys()) and final_try_counter <= 10\
                 and not prev_round_internal_min_marker_cont_size == 0:  # internal_min_marker_cont_size > prev_round_internal_min_marker_cont_size:
-            internal_min_marker_cont_size = 2000 - 500 * final_try_counter
+            internal_min_marker_cont_size = 2500 - 500 * final_try_counter
             if internal_min_marker_cont_size > 0:
                 internal_min_cont_size = internal_min_marker_cont_size
             else:
