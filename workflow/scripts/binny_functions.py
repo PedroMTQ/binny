@@ -30,7 +30,6 @@ import os
 bin_dir = '/'.join(os.path.dirname(__file__).split('/')[:-1])
 sys.path.append('/home/parallels/local_tools/Multicore-opt-SNE')
 # sys.path.append('{0}/bin/Multicore-opt-SNE'.format(bin_dir))
-os.path.dirname(__file__)
 from MulticoreTSNE import MulticoreTSNE as TSNE
 import matplotlib.cm as cm
 import multiprocessing
@@ -185,7 +184,6 @@ def hdbscan_cluster(contig_data_df, pk=None, pk_factor=2, include_depth=False, n
         pk = get_perp(contig_data_df['contig'].size, pk_factor)
         if pk < len(dims) * 2:
             pk = len(dims) * 2
-
     with parallel_backend('threading'):
         np.random.seed(0)
         logging.info('HDBSCAN: min_cluster_size={0}, min_samples={1}, cluster_selection_epsilon={2}, '
@@ -215,8 +213,8 @@ def hdbscan_cluster(contig_data_df, pk=None, pk_factor=2, include_depth=False, n
 
 def run_initial_scan(contig_data_df, initial_cluster_mode, dbscan_threads, pk=None, pk_factor=2, include_depth=False,
                      hdbscan_epsilon=0.25, hdbscan_min_samples=2, dist_metric='manhattan'):
-    if not pk:
-        pk = get_perp(contig_data_df['contig'].size, pk_factor)
+    # if not pk:
+    #     pk = get_perp(contig_data_df['contig'].size, pk_factor)
     if initial_cluster_mode == 'HDBSCAN' or not initial_cluster_mode:
         logging.info('Running initial scan with HDBSCAN.')
         first_clust_dict, labels = hdbscan_cluster(contig_data_df, pk=pk, pk_factor=pk_factor, n_jobs=dbscan_threads,
@@ -809,7 +807,9 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
         max_tries = 2
 
     while n_iterations <= max_iterations and n_new_clusters > 0:
-        init_clust_dict, labels = run_initial_scan(leftovers_df, 'HDBSCAN', threads, pk_factor=pk_factor, include_depth=include_depth_initial,
+        init_clust_dict, labels = run_initial_scan(leftovers_df, initial_cluster_mode='HDBSCAN',
+                                                   dbscan_threads=threads, pk_factor=pk_factor,
+                                                   include_depth=include_depth_initial,
                                                    hdbscan_epsilon=hdbscan_epsilon,
                                                    hdbscan_min_samples=hdbscan_min_samples, dist_metric=dist_metric)
 
@@ -1244,9 +1244,8 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
             round_x_contigs = [cont for cont in x_contigs
                                if len(assembly_dict[cont]) >= internal_min_cont_size
                                or (annotation_dict.get(cont) and len(assembly_dict[cont]) >= internal_min_marker_cont_size)]
-            round_leftovers_contig_list = [cont for cont in x_contigs if cont not in round_x_contigs]
-                                        #    if len(assembly_dict[cont]) < internal_min_cont_size
-                                        #    or (annotation_dict.get(cont) and len(assembly_dict[cont]) < internal_min_marker_cont_size)]
+            # round_leftovers_contig_list = [cont for cont in x_contigs if cont not in round_x_contigs]
+            round_leftovers_contig_list = list(set(x_contigs).difference(set(round_x_contigs)))
         else:
             internal_min_marker_cont_size = check_sustainable_contig_number(round_leftovers_contig_list,
                                                                             internal_min_marker_cont_size,
@@ -1259,9 +1258,8 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
             round_x_contigs = [cont for cont in round_leftovers_contig_list
                                if len(assembly_dict[cont]) >= internal_min_cont_size
                                or (annotation_dict.get(cont) and len(assembly_dict[cont]) >= internal_min_marker_cont_size)]
-            round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list if cont not in round_x_contigs]
-                                        #    if len(assembly_dict[cont]) < internal_min_cont_size
-                                        #    or (annotation_dict.get(cont) and len(assembly_dict[cont]) < internal_min_marker_cont_size)]
+            # round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list if cont not in round_x_contigs]
+            round_leftovers_contig_list = list(set(round_leftovers_contig_list).difference(set(round_x_contigs)))
             round_leftovers_contig_list_backup = round_leftovers_contig_list.copy()
             while ((max_contig_threshold < len(round_x_contigs) or len(round_x_contigs) < 5)
                    and internal_min_marker_cont_size > 0):
@@ -1337,13 +1335,13 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
-        perp_range = [5, 120]  # [5, 30]
+        perp_range = [5, 30]  # [5, 30]
 
         learning_rate_factor_range = [12, 12]  # [12, 12]
 
         if embedding_tries > 1:
             if perp < perp_range[1]:
-                perp += 115  # 25
+                perp += 25 # 25
                 pk_factor = 4
             else:
                 perp = perp_range[0]
@@ -1368,28 +1366,30 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
         logging.info('Finished t-SNE dimensionality-reduction.')
 
+        make_gs_plot = False
         ########################################################################
         # Load gs map
-        gs = '/media/psf/Home/Downloads/c2_t_oral_s17_gsa_mapping.tsv'
-        cont2gen_gs_dict = {}
-        with open(gs, 'r') as f:
-            next(f)
-            for line in f:
-                line = line.strip('\n \t').split('\t')
-                cont2gen_gs_dict[line[0]] = line[1]
-        # Plot gs
-        print('Plotting with gold standard genomes')
-        n_dim = 2
-        dim_range = [i + 1 for i in range(n_dim)]
-        gs_coord_df = pd.DataFrame(data=embedding_multiscale, index=None,
-                                   columns=['dim' + str(i) for i in dim_range])
-        gs_coord_df['contig'] = round_x_contigs
-        gs_coord_df['cluster'] = [cont2gen_gs_dict [contig] for contig in round_x_contigs]
-        gs_coord_df = gs_coord_df[['contig'] + ['dim' + str(i) for i in dim_range] + ['cluster']]
-        timestr = time.strftime("%Y%m%d-%H%M%S")
-        write_scatterplot(gs_coord_df, gs_coord_df['cluster'],
-                          '{0}_gs_label_scatter_plot_n_contigs_{1}_it_{2}.pdf'.format(timestr, len(round_x_contigs),
-                                                                                      embedding_tries))
+        if make_gs_plot:
+            gs = '/media/psf/Home/Downloads/c2_t_oral_s17_gsa_mapping.tsv'
+            cont2gen_gs_dict = {}
+            with open(gs, 'r') as f:
+                next(f)
+                for line in f:
+                    line = line.strip('\n \t').split('\t')
+                    cont2gen_gs_dict[line[0]] = line[1]
+            # Plot gs
+            print('Plotting with gold standard genomes')
+            n_dim = 2
+            dim_range = [i + 1 for i in range(n_dim)]
+            gs_coord_df = pd.DataFrame(data=embedding_multiscale, index=None,
+                                       columns=['dim' + str(i) for i in dim_range])
+            gs_coord_df['contig'] = round_x_contigs
+            gs_coord_df['cluster'] = [cont2gen_gs_dict [contig] for contig in round_x_contigs]
+            gs_coord_df = gs_coord_df[['contig'] + ['dim' + str(i) for i in dim_range] + ['cluster']]
+            timestr = time.strftime("%Y%m%d-%H%M%S")
+            write_scatterplot(gs_coord_df, gs_coord_df['cluster'],
+                              '{0}_gs_label_scatter_plot_n_contigs_{1}_it_{2}.pdf'.format(timestr, len(round_x_contigs),
+                                                                                          embedding_tries))
         ########################################################################
 
         # Create coordinate df.
