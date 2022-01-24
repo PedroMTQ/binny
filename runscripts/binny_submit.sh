@@ -143,7 +143,7 @@ elif [ "$INITIAL" = true ]; then
       fi
     done
     echo "Installing opt-SNE."
-    git clone https://github.com/omiq-ai/Multicore-opt-SNE.git $DIR/workflow/bin
+    git clone https://github.com/omiq-ai/Multicore-opt-SNE.git $DIR/workflow/bin/Multicore-opt-SNE
     conda activate ${DIR}/conda/${binny_env}
     conda install -c anaconda cmake
     cd $DIR/workflow/bin/Multicore-opt-SNE
@@ -151,6 +151,7 @@ elif [ "$INITIAL" = true ]; then
            -e "s|auto_iter_buffer_run = 15|auto_iter_buffer_run = 30|g" \
            -e "s|auto_iter_ee_switch_buffer = 2|auto_iter_ee_switch_buffer = 4|g" multicore_tsne/tsne.cpp
     pip install .
+    which python
     python setup.py build
     cp Multicore-opt-SNE/build/lib.linux-x86_64-3.8/MulticoreTSNE/libtsne_multicore.so Multicore-opt-SNE/MulticoreTSNE
     cd $DIR
