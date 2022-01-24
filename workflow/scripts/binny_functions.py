@@ -26,8 +26,9 @@ from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 
 import sys
-sys.path.append('/home/parallels/local_tools/Multicore-opt-SNE')
 import os
+sys.path.append('/home/parallels/local_tools/Multicore-opt-SNE')
+# sys.path.append('{0}/workflow/bin/Multicore-opt-SNE'.format(os.getcwd()))
 from MulticoreTSNE import MulticoreTSNE as TSNE
 import matplotlib.cm as cm
 import multiprocessing
@@ -210,10 +211,10 @@ def hdbscan_cluster(contig_data_df, pk=None, include_depth=False, n_jobs=1, hdbs
     return cluster_dict, cluster_labels
 
 
-def run_initial_scan(contig_data_df, initial_cluster_mode, dbscan_threads, pk=None, include_depth=False,
+def run_initial_scan(contig_data_df, initial_cluster_mode, dbscan_threads, pk=None, pk_factor=2, include_depth=False,
                      hdbscan_epsilon=0.25, hdbscan_min_samples=2, dist_metric='manhattan'):
     if not pk:
-        pk = get_perp(contig_data_df['contig'].size)
+        pk = get_perp(contig_data_df['contig'].size, pk_factor)
     if initial_cluster_mode == 'HDBSCAN' or not initial_cluster_mode:
         logging.info('Running initial scan with HDBSCAN.')
         first_clust_dict, labels = hdbscan_cluster(contig_data_df, pk=pk, n_jobs=dbscan_threads,
@@ -348,7 +349,7 @@ def hdbscan_sub_clusters(cluster_contig_df, cluster, pk, threads_for_dbscan, dep
 
 
 def get_sub_clusters(cluster_dicts, threads_for_dbscan, marker_sets_graph, tigrfam2pfam_data_dict, purity_threshold=0.95,
-                      completeness_threshold=0.9, pk=None, cluster_mode=None, include_depth=True, hdbscan_epsilon=0.25,
+                      completeness_threshold=0.9, pk=None, pk_factor=2, cluster_mode=None, include_depth=True, hdbscan_epsilon=0.25,
                      hdbscan_min_samples=2, dist_metric='manhattan'):
     outputs = []
     for cluster_dict in cluster_dicts:
@@ -379,9 +380,10 @@ def get_sub_clusters(cluster_dicts, threads_for_dbscan, marker_sets_graph, tigrf
             if min_dims > cluster_contig_df['contig'].size:
                 min_dims = 2
             if not pk:
-                pk = int(np.log(cluster_contig_df['contig'].size))
-                if pk > 15:
-                    pk = 15
+                # pk = int(np.log(cluster_contig_df['contig'].size), pk_factor)
+                pk = get_perp(cluster_contig_df['contig'].size, pk_factor)
+                # if pk > 15:
+                #     pk = 15
             if pk < min_dims:
                 pk = min_dims
 
@@ -422,7 +424,7 @@ def get_sub_clusters(cluster_dicts, threads_for_dbscan, marker_sets_graph, tigrf
 
 
 def divide_clusters_by_depth(ds_clstr_dict, threads, marker_sets_graph, tigrfam2pfam_data_dict, min_purity=90,
-                             min_completeness=50, pk=None, cluster_mode=None, include_depth=False, max_tries=15,
+                             min_completeness=50, pk=None, pk_factor=2, cluster_mode=None, include_depth=False, max_tries=15,
                              hdbscan_epsilon=0.25, hdbscan_min_samples=2, dist_metric='manhattan'):
     min_purity = min_purity / 100
     min_completeness = min_completeness / 100
@@ -456,7 +458,7 @@ def divide_clusters_by_depth(ds_clstr_dict, threads, marker_sets_graph, tigrfam2
                                     (delayed(get_sub_clusters)(cluster_dict_list, inner_max_threads, marker_sets_graph,
                                                                tigrfam2pfam_data_dict, purity_threshold=min_purity,
                                                                completeness_threshold=min_completeness,
-                                                               pk=pk, cluster_mode=cluster_mode,
+                                                               pk=pk, pk_factor=pk_factor, cluster_mode=cluster_mode,
                                                                include_depth=include_depth,
                                                                hdbscan_epsilon=hdbscan_epsilon,
                                                                hdbscan_min_samples=hdbscan_min_samples,
@@ -747,8 +749,8 @@ def split(a, n):
     return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
 
-def get_perp(n_data_points):
-    return int(np.log(n_data_points)/2)
+def get_perp(n_data_points, factor=4):
+    return int(np.log(n_data_points) / factor)
 
 
 def gff2low_comp_feature_dict(annotation_file):
@@ -792,7 +794,7 @@ def mask_rep_featrues(contig_rep_feature_dict, contig_list):
                                         + contig[1][region[1]:]
 
 
-def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_dict, min_purity, min_completeness,
+def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_dict, min_purity, min_completeness, pk_factor=2,
                   max_iterations=10, embedding_iteration=1, max_tries=False, include_depth_initial=False,
                   include_depth_main=True, hdbscan_epsilon=0.25, hdbscan_min_samples=2,
                   dist_metric='manhattan'):
@@ -805,16 +807,16 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
         max_tries = 2
 
     while n_iterations <= max_iterations and n_new_clusters > 0:
-        init_clust_dict, labels = run_initial_scan(leftovers_df, 'HDBSCAN', threads, include_depth=include_depth_initial,
+        init_clust_dict, labels = run_initial_scan(leftovers_df, 'HDBSCAN', threads, pk_factor=pk_factor, include_depth=include_depth_initial,
                                                    hdbscan_epsilon=hdbscan_epsilon,
                                                    hdbscan_min_samples=hdbscan_min_samples, dist_metric=dist_metric)
 
         logging.info('Initial clustering with HDBSCAN cluster selection epsilon of {0} '
                      'resulted in {1} clusters.'.format(hdbscan_epsilon, len(set(labels))))
 
-        timestr = time.strftime("%Y%m%d-%H%M%S")
-        write_scatterplot(leftovers_df, labels,
-                          '{0}_HDBSCAN_label_scatter_plot_eps_{1}_it_{2}.pdf'.format(timestr, hdbscan_epsilon, embedding_iteration))
+        # timestr = time.strftime("%Y%m%d-%H%M%S")
+        # write_scatterplot(leftovers_df, labels,
+        #                   '{0}_HDBSCAN_label_scatter_plot_eps_{1}_it_{2}.pdf'.format(timestr, hdbscan_epsilon, embedding_iteration))
 
         if n_iterations == 1:
             for cluster in init_clust_dict:
@@ -824,7 +826,7 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
         logging.info('Attempting to find sub-clusters using HDBSCAN.')
         new_clust_dict, split_clusters = divide_clusters_by_depth(init_clust_dict, threads, marker_sets_graph,
                                                                   tigrfam2pfam_data_dict, int(min_purity),
-                                                                  int(min_completeness), cluster_mode='HDBSCAN',
+                                                                  int(min_completeness), pk_factor=pk_factor, cluster_mode='HDBSCAN',
                                                                   include_depth=include_depth_main, max_tries=max_tries,
                                                                   hdbscan_epsilon=hdbscan_epsilon,
                                                                   hdbscan_min_samples=hdbscan_min_samples,
@@ -1333,15 +1335,17 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
-        perp_range = [5, 60]  # [5, 30]
+        perp_range = [5, 120]  # [5, 30]
 
-        learning_rate_factor_range = [12, 6]  # [12, 12]
+        learning_rate_factor_range = [12, 12]  # [12, 12]
 
         if embedding_tries > 1:
             if perp < perp_range[1]:
-                perp += 55  # 25
+                perp += 115  # 25
+                pk_factor = 4
             else:
                 perp = perp_range[0]
+                pk_factor = 2
 
             if learning_rate_factor > learning_rate_factor_range[1]:
                 learning_rate_factor -= 6
@@ -1350,6 +1354,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         else:
             learning_rate_factor = learning_rate_factor_range[0]
             perp = perp_range[0]
+            pk_factor = 2
 
         learning_rate = int(len(x_pca)/learning_rate_factor)
         logging.info('optSNE learning rate: {0}.'.format(learning_rate))
@@ -1413,7 +1418,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
         # Find bins
         good_bins, final_init_clust_dict = binny_iterate(contig_data_df, threads, taxon_marker_sets, tigrfam2pfam_data,
-                                                         min_purity, internal_completeness, 1,
+                                                         min_purity, internal_completeness, pk_factor, 1,
                                                          embedding_iteration=embedding_tries, max_tries=2,
                                                          include_depth_initial=include_depth_initial,
                                                          include_depth_main=include_depth_main,
