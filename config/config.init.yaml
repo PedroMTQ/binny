@@ -60,4 +60,4 @@ binning:
       # start at 90.
       completeness: 90
       # Minimum purity for bins to be selected.
-      purity: 85
+      purity: 90

@@ -914,7 +914,7 @@ def asses_contig_completeness_purity(essential_gene_lol, n_dims, marker_sets_gra
             single_contig_bins.append(bin_dict)
         elif pur < 0.9:
             cont_name = contig_data[0]
-            logging.debug(f'{cont_name} below 90 pur with {pur}, comp {comp} and is assumed to be {taxon}.')
+            logging.info(f'{cont_name} below 90 pur with {pur}, comp {comp} and is assumed to be {taxon}.')
     return single_contig_bins
 
 
@@ -1349,9 +1349,10 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
 
         if embedding_tries > 1:
-            if perp < perp_range[1] and perp_1_done:
-                perp += 55 # 25
-                pk_factor = 1.5
+            if perp_1_done:
+                if perp < perp_range[1]:
+                    perp += 55 # 25
+                    pk_factor = 1.5
                 hdbscan_min_samples = hdbscan_min_samples_range[hdbs_min_samp_ind]
                 hdbs_min_samp_ind +=1
                 if hdbs_min_samp_ind == len(hdbscan_min_samples_range):
@@ -1361,26 +1362,23 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                 perp = perp_range[0]
                 pk_factor = 1
                 hdbscan_min_samples = hdbscan_min_samples_range[hdbs_min_samp_ind]
-                hdbs_min_samp_ind +=1
+                hdbs_min_samp_ind += 1
                 # Dont use len() - 1 because we want to check when all vals in range list are done
                 if hdbs_min_samp_ind == len(hdbscan_min_samples_range):
                     perp_1_done = True
                     hdbs_min_samp_ind = 0
-
-
-
 
             if learning_rate_factor > learning_rate_factor_range[1]:
                 learning_rate_factor -= 6
             else:
                 learning_rate_factor = learning_rate_factor_range[0]
 
-            if hdbscan_min_samples
         else:
             learning_rate_factor = learning_rate_factor_range[0]
             perp = perp_range[0]
             pk_factor = 1
-            hdbscan_min_samples = hdbscan_min_samples_range[0]
+            hdbscan_min_samples = hdbscan_min_samples_range[hdbs_min_samp_ind]
+            hdbs_min_samp_ind += 1
 
         learning_rate = int(len(x_pca)/learning_rate_factor)
         logging.info(f'optSNE learning rate: {learning_rate}, perplexity: {perp}, pk_factor: {pk_factor}')
@@ -1531,5 +1529,6 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
             raise Exception
         logging.info('Good bins so far: {0}.'.format(len(all_good_bins.keys())))
         if len(round_leftovers.index) == 0:
+            logging.info('Binned all contigs.')
             break
     return all_good_bins, contig_data_df_org
