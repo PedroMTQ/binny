@@ -905,13 +905,16 @@ def asses_contig_completeness_purity(essential_gene_lol, n_dims, marker_sets_gra
         all_ess = contig_data[1]
         marker_set = choose_checkm_marker_set(all_ess, marker_sets_graph, tigrfam2pfam_data_dict)
         taxon, comp, pur = marker_set[0], marker_set[1], marker_set[2]
-        if pur > 0.80 and comp > 0.85:
+        if pur > 0.95 and comp > 0.90:
             bin_dict = {contig_data[0]: {'depth1': np.array([None]), 'contigs': np.array([contig_data[0]]),
                                         'essential': np.array(all_ess), 'purity': pur, 'completeness': comp,
                                          'taxon': taxon}}
             for dim in range(n_dims):
                 bin_dict[contig_data[0]]['dim'+str(dim+1)] = np.array(np.array([None]))
             single_contig_bins.append(bin_dict)
+        elif pur < 0.9:
+            cont_name = contig_data[0]
+            logging.debug(f'{cont_name} below 90 pur with {pur}, comp {comp} and is assumed to be {taxon}.')
     return single_contig_bins
 
 
@@ -1232,6 +1235,9 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
     perp_1 = 30  # 10
     perp_2 = 200 # 100
     hdbscan_epsilon = hdbscan_epsilon_range[0]
+    hdbs_min_samp_ind = 0
+    perp_1_done = False
+    perp_2_done = False
     while embedding_tries <= max_embedding_tries:
         if embedding_tries == 1:
             internal_min_marker_cont_size = check_sustainable_contig_number(x_contigs, internal_min_marker_cont_size,
@@ -1313,8 +1319,8 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         # Manifold learning and dimension reduction.
         logging.info('Running manifold learning and dimension reduction.')
 
-        if len(round_x_contigs) > 30: # 30
-            n_comp = 30 # 30
+        if len(round_x_contigs) > 50: # 30
+            n_comp = 50 # 30
         else:
             n_comp = len(round_x_contigs) - 1
 
@@ -1339,25 +1345,45 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
         learning_rate_factor_range = [12, 12]  # [12, 12]
 
+        hdbscan_min_samples_range = [5, 2]
+
+
         if embedding_tries > 1:
-            if perp < perp_range[1]:
+            if perp < perp_range[1] and perp_1_done:
                 perp += 55 # 25
-                pk_factor = 2
+                pk_factor = 1.5
+                hdbscan_min_samples = hdbscan_min_samples_range[hdbs_min_samp_ind]
+                hdbs_min_samp_ind +=1
+                if hdbs_min_samp_ind == len(hdbscan_min_samples_range):
+                    perp_1_done = False
+                    hdbs_min_samp_ind = 0
             else:
                 perp = perp_range[0]
                 pk_factor = 1
+                hdbscan_min_samples = hdbscan_min_samples_range[hdbs_min_samp_ind]
+                hdbs_min_samp_ind +=1
+                # Dont use len() - 1 because we want to check when all vals in range list are done
+                if hdbs_min_samp_ind == len(hdbscan_min_samples_range):
+                    perp_1_done = True
+                    hdbs_min_samp_ind = 0
+
+
+
 
             if learning_rate_factor > learning_rate_factor_range[1]:
                 learning_rate_factor -= 6
             else:
                 learning_rate_factor = learning_rate_factor_range[0]
+
+            if hdbscan_min_samples
         else:
             learning_rate_factor = learning_rate_factor_range[0]
             perp = perp_range[0]
-            pk_factor = 2
+            pk_factor = 1
+            hdbscan_min_samples = hdbscan_min_samples_range[0]
 
         learning_rate = int(len(x_pca)/learning_rate_factor)
-        logging.info('optSNE learning rate: {0}.'.format(learning_rate))
+        logging.info(f'optSNE learning rate: {learning_rate}, perplexity: {perp}, pk_factor: {pk_factor}')
 
         tsne = TSNE(n_jobs=threads, verbose=50, random_state=0, auto_iter=True, perplexity=perp,
                     learning_rate=learning_rate)  # , learning_rate=len(data)/12, auto_iter_end=1000, early_exaggeration=early_exag,
@@ -1443,15 +1469,15 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                     min_purity = 95
             logging.info('Found no good bins. Minimum completeness lowered to {0},'
                          ' minimum purity is {1}.'.format(internal_completeness, min_purity))
-        elif not list(good_bins.keys()) and final_try_counter <= 10\
-                and not prev_round_internal_min_marker_cont_size == 0:  # internal_min_marker_cont_size > prev_round_internal_min_marker_cont_size:
+        elif not list(good_bins.keys()) and final_try_counter < 10\
+                and not prev_round_internal_min_marker_cont_size < 1:  # internal_min_marker_cont_size > prev_round_internal_min_marker_cont_size:
             internal_min_marker_cont_size = 2500 - 500 * final_try_counter
             if internal_min_marker_cont_size > 0:
                 internal_min_cont_size = internal_min_marker_cont_size
             else:
                 internal_min_cont_size = 500
             final_try_counter += 1
-            internal_completeness = 80
+            internal_completeness = 90
             min_purity = 90
             logging.info('Final attempt with contigs >= {0}bp,'
                          ' minimum completeness {1}, and minimum purity {2}.'.format(internal_min_marker_cont_size,
