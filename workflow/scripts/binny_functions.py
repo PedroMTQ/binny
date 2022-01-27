@@ -511,6 +511,7 @@ def contig_df_from_cluster_dict(cluster_dict):
     clust_contig_df_ind = []
     clust_contig_df_ind_init = 0
     for cluster in cluster_dict:
+        warning_off = False
         for index, contig in enumerate(cluster_dict[cluster]['contigs']):
             try:
                 new_row = [contig, cluster_dict[cluster]['essential'][index]]\
@@ -518,8 +519,10 @@ def contig_df_from_cluster_dict(cluster_dict):
                            + [cluster_dict[cluster][depth][index] for depth in depths]\
                            + [cluster, cluster_dict[cluster]['purity'], cluster_dict[cluster]['completeness']]
             except KeyError:
-                logging.warning('Something went wrong while fetching cluster data:'
-                                ' {0}, {1}'.format(str(cluster_dict[cluster]), str(cluster_dict.keys())))
+                if not warning_off:
+                    logging.warning('Something went wrong while fetching cluster data for cluster {0}:'
+                                    ' {1}'.format(cluster, [cluster_dict[cluster].get('purity'), cluster_dict[cluster].get('completeness')]))
+                    warning_off = True
                 new_row = [contig, cluster_dict[cluster]['essential'][index]]\
                            + [cluster_dict[cluster][dim][index] for dim in dims] \
                            + [cluster_dict[cluster][depth][index] for depth in depths]\
@@ -800,21 +803,32 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
                   dist_metric='manhattan'):
     leftovers_df = contig_data_df.copy()
     n_iterations = 1
-    n_new_clusters = 1
+    # n_new_clusters = 1
     good_clusters = {}
+
+    hdbscan_min_samples_range = [5, 2]
+    hdbs_min_samp_ind = 0
+    perp_1_done = False
 
     if not max_tries:
         max_tries = 2
 
-    while n_iterations <= max_iterations and n_new_clusters > 0:
+    while n_iterations <= max_iterations:  # and n_new_clusters > 0:
+        logging.info(f'Clustering round {n_iterations}.')
+        hdbscan_min_samples = hdbscan_min_samples_range[hdbs_min_samp_ind]
+        hdbs_min_samp_ind += 1
+        if hdbs_min_samp_ind == len(hdbscan_min_samples_range):
+            hdbs_min_samp_ind = 0
+
+
         init_clust_dict, labels = run_initial_scan(leftovers_df, initial_cluster_mode='HDBSCAN',
                                                    dbscan_threads=threads, pk_factor=pk_factor,
                                                    include_depth=include_depth_initial,
                                                    hdbscan_epsilon=hdbscan_epsilon,
                                                    hdbscan_min_samples=hdbscan_min_samples, dist_metric=dist_metric)
 
-        logging.info('Initial clustering with HDBSCAN cluster selection epsilon of {0} '
-                     'resulted in {1} clusters.'.format(hdbscan_epsilon, len(set(labels))))
+        logging.info('Initial clustering with HDBSCAN cluster selection epsilon of {0} and min_samples of {1} '
+                     'resulted in {2} clusters.'.format(hdbscan_epsilon, hdbscan_min_samples, len(set(labels))))
 
         # timestr = time.strftime("%Y%m%d-%H%M%S")
         # write_scatterplot(leftovers_df, labels,
@@ -825,6 +839,14 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
                 init_clust_dict[cluster]['purity'] = 0
                 init_clust_dict[cluster]['completeness'] = 0
                 init_clust_dict[cluster]['taxon'] = 'none'
+        else:
+            for cluster in init_clust_dict:
+                if 'purity' not in init_clust_dict[cluster]:
+                    init_clust_dict[cluster]['purity'] = 0
+                if 'completeness' not in init_clust_dict[cluster]:
+                    init_clust_dict[cluster]['completeness'] = 0
+                if 'taxon' not in init_clust_dict[cluster]:
+                    init_clust_dict[cluster]['taxon'] = 'none'
         logging.info('Attempting to find sub-clusters using HDBSCAN.')
         new_clust_dict, split_clusters = divide_clusters_by_depth(init_clust_dict, threads, marker_sets_graph,
                                                                   tigrfam2pfam_data_dict, int(min_purity),
@@ -843,7 +865,7 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
 
 
         iteration_clust_df = cluster_df_from_dict(iteration_clust_dict)
-        iteration_clust_df.to_csv('intermediary/iteration_{0}_contigs2clusters.tsv'.format(n_iterations), sep='\t',
+        iteration_clust_df.to_csv('intermediary/iteration_{0}_round_{1}_contigs2clusters.tsv'.format(embedding_iteration, n_iterations), sep='\t',
                                   index=False)
 
         iteration_clust_contig_df = contig_df_from_cluster_dict(iteration_clust_dict)
@@ -869,6 +891,8 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
         if list(good_clusters.keys()):
             leftovers_df = leftovers_df[~leftovers_df['contig'].isin(good_clust_contig_df['contig'].tolist())]
         n_iterations += 1
+        if len(leftovers_df.index) == 0:
+            break
     return good_clusters, init_clust_dict
 
 
@@ -912,7 +936,7 @@ def asses_contig_completeness_purity(essential_gene_lol, n_dims, marker_sets_gra
             for dim in range(n_dims):
                 bin_dict[contig_data[0]]['dim'+str(dim+1)] = np.array(np.array([None]))
             single_contig_bins.append(bin_dict)
-        elif pur < 0.9:
+        elif pur < 0.9 and comp > 0.5:
             cont_name = contig_data[0]
             logging.info(f'{cont_name} below 90 pur with {pur}, comp {comp} and is assumed to be {taxon}.')
     return single_contig_bins
@@ -1341,32 +1365,17 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
-        perp_range = [5, 60]  # [5, 30]
+        perp_range = [10, 30]  # [5, 30]
 
-        learning_rate_factor_range = [12, 12]  # [12, 12]
-
-        hdbscan_min_samples_range = [5, 2]
-
+        learning_rate_factor_range = [12, 12]
 
         if embedding_tries > 1:
-            if perp_1_done:
-                if perp < perp_range[1]:
-                    perp += 55 # 25
-                    pk_factor = 1.5
-                hdbscan_min_samples = hdbscan_min_samples_range[hdbs_min_samp_ind]
-                hdbs_min_samp_ind +=1
-                if hdbs_min_samp_ind == len(hdbscan_min_samples_range):
-                    perp_1_done = False
-                    hdbs_min_samp_ind = 0
+            if perp < perp_range[1]:
+                perp += 20 # 25
+                pk_factor = 1.5
             else:
                 perp = perp_range[0]
                 pk_factor = 1
-                hdbscan_min_samples = hdbscan_min_samples_range[hdbs_min_samp_ind]
-                hdbs_min_samp_ind += 1
-                # Dont use len() - 1 because we want to check when all vals in range list are done
-                if hdbs_min_samp_ind == len(hdbscan_min_samples_range):
-                    perp_1_done = True
-                    hdbs_min_samp_ind = 0
 
             if learning_rate_factor > learning_rate_factor_range[1]:
                 learning_rate_factor -= 6
@@ -1374,11 +1383,9 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                 learning_rate_factor = learning_rate_factor_range[0]
 
         else:
-            learning_rate_factor = learning_rate_factor_range[0]
             perp = perp_range[0]
             pk_factor = 1
-            hdbscan_min_samples = hdbscan_min_samples_range[hdbs_min_samp_ind]
-            hdbs_min_samp_ind += 1
+            learning_rate_factor = learning_rate_factor_range[0]
 
         learning_rate = int(len(x_pca)/learning_rate_factor)
         logging.info(f'optSNE learning rate: {learning_rate}, perplexity: {perp}, pk_factor: {pk_factor}')
@@ -1444,7 +1451,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
         # Find bins
         good_bins, final_init_clust_dict = binny_iterate(contig_data_df, threads, taxon_marker_sets, tigrfam2pfam_data,
-                                                         min_purity, internal_completeness, pk_factor, 1,
+                                                         min_purity, internal_completeness, pk_factor, 2,
                                                          embedding_iteration=embedding_tries, max_tries=2,
                                                          include_depth_initial=include_depth_initial,
                                                          include_depth_main=include_depth_main,
