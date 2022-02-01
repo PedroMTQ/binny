@@ -28,8 +28,8 @@ from sklearn.neighbors import KNeighborsClassifier
 import sys
 import os
 bin_dir = '/'.join(os.path.dirname(__file__).split('/')[:-1])
-sys.path.append('/home/parallels/local_tools/Multicore-opt-SNE')
-# sys.path.append('{0}/bin/Multicore-opt-SNE'.format(bin_dir))
+# sys.path.append('/home/parallels/local_tools/Multicore-opt-SNE')
+sys.path.append('{0}/bin/Multicore-opt-SNE'.format(bin_dir))
 from MulticoreTSNE import MulticoreTSNE as TSNE
 import matplotlib.cm as cm
 import multiprocessing
@@ -368,6 +368,23 @@ def get_sub_clusters(cluster_dicts, threads_for_dbscan, marker_sets_graph, tigrf
         cluster_dict[cluster]['completeness'] = clust_comp
         cluster_dict[cluster]['taxon'] = clust_taxon
 
+        if 0.850 < clust_comp <= 0.900:
+            if purity_threshold < 0.875:
+                purity_threshold = 0.875
+        elif 0.750 < clust_comp <= 0.850:
+            if purity_threshold < 0.900:
+                purity_threshold = 0.900
+        elif 0.700 < clust_comp <= 0.750:
+            if purity_threshold < 0.950:
+                purity_threshold = 0.950
+        elif clust_comp <= 0.700:
+            if purity_threshold < 0.975:
+                purity_threshold = 0.975
+
+        if clust_taxon == 'Bacteria':
+            if purity_threshold < 0.975:
+                purity_threshold += 0.025
+
         if clust_pur < purity_threshold and isinstance(clust_pur, float) and clust_comp >= completeness_threshold:
             logging.debug('Cluster {0} below purity of {1} with {2} and matches completeness of {3} with {4}. '
                   'Attempting to split.'.format(shorten_cluster_names(cluster), purity_threshold, clust_pur,
@@ -426,6 +443,20 @@ def get_sub_clusters(cluster_dicts, threads_for_dbscan, marker_sets_graph, tigrf
 def divide_clusters_by_depth(ds_clstr_dict, threads, marker_sets_graph, tigrfam2pfam_data_dict, min_purity=90,
                              min_completeness=50, pk=None, pk_factor=2, cluster_mode=None, include_depth=False, max_tries=15,
                              hdbscan_epsilon=0.25, hdbscan_min_samples=2, dist_metric='manhattan'):
+
+    # if 80 < min_completeness <= 85:
+    #     if min_purity < 87.5:
+    #         min_purity = 87.5
+    # elif 75 < min_completeness <= 80:
+    #     if min_purity < 90:
+    #         min_purity = 90
+    # elif 70 < min_completeness <= 75:
+    #     if min_purity < 95:
+    #         min_purity = 95
+    # elif min_completeness <= 70:
+    #     if min_purity < 97.5:
+    #         min_purity = 97.5
+
     min_purity = min_purity / 100
     min_completeness = min_completeness / 100
     dict_cp = ds_clstr_dict.copy()
@@ -806,7 +837,7 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
     # n_new_clusters = 1
     good_clusters = {}
 
-    hdbscan_min_samples_range = [5, 2]
+    hdbscan_min_samples_range = [2, 5]
     hdbs_min_samp_ind = 0
     perp_1_done = False
 
@@ -871,10 +902,24 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
         iteration_clust_contig_df = contig_df_from_cluster_dict(iteration_clust_dict)
 
         # Plot sub-clustering
-        conditions = [(iteration_clust_contig_df['purity'] >= min_purity / 100) & (
-                iteration_clust_contig_df['completeness'] >= min_completeness / 100),
-                      (iteration_clust_contig_df['purity'] < min_purity / 100) | (
-                              iteration_clust_contig_df['completeness'] < min_completeness / 100)]
+        conditions = [((iteration_clust_contig_df['purity'] <= max(min_purity / 100, 0.850))
+                          & (0.900 < iteration_clust_contig_df['completeness']))
+                      |
+                      ((iteration_clust_contig_df['purity'] <= max(min_purity / 100, 0.875))
+                          & ((0.850 < iteration_clust_contig_df['completeness']) & (iteration_clust_contig_df['completeness'] <= 0.900)))
+                      |
+                      ((iteration_clust_contig_df['purity'] <= max(min_purity / 100, 0.900))
+                          & ((0.750 < iteration_clust_contig_df['completeness']) & (iteration_clust_contig_df['completeness']  <= 0.850)))
+                      |
+                      ((iteration_clust_contig_df['purity'] <= max(min_purity / 100, 0.950))
+                          & ((0.700 < iteration_clust_contig_df['completeness']) & (iteration_clust_contig_df['completeness']  <= 0.750)))
+                      |
+                      ((iteration_clust_contig_df['purity'] <= max(min_purity / 100, 0.975))
+                          & (iteration_clust_contig_df['completeness'] <= 0.700)), 
+                             
+                      (iteration_clust_contig_df['purity'] < min_purity / 100)
+                          | (iteration_clust_contig_df['completeness'] < min_completeness / 100)]
+        print(conditions[0])
         values = [iteration_clust_contig_df['cluster'], 'N']
         iteration_clust_contig_df['above_thresh'] = np.select(conditions, values)
         iteration_clust_contig_df = contig_data_df.merge(iteration_clust_contig_df, how='outer', on='contig',
@@ -897,7 +942,7 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
 
 
 def get_single_contig_bins(essential_gene_df, good_bins_dict, n_dims, marker_sets_graph, tigrfam2pfam_data_dict,
-                           threads=1):
+                           threads=1, purity=0.75, completeness=0.85):
     essential_gene_lol = essential_gene_df.values.tolist()
     cluster_list = [[i[0], i[1].split(',')] for i in essential_gene_lol if len(set(i[1].split(','))) >= 40]
     cluster_list.sort(key=lambda i: i[1], reverse=True)
@@ -912,7 +957,7 @@ def get_single_contig_bins(essential_gene_df, good_bins_dict, n_dims, marker_set
             single_contig_bin_dict_list = Parallel(n_jobs=threads)\
                                                   (delayed(asses_contig_completeness_purity)
                                                           (contig_data, n_dims, marker_sets_graph,
-                                                           tigrfam2pfam_data_dict)
+                                                           tigrfam2pfam_data_dict, purity=purity, completeness=completeness)
                                                    for contig_data in chunks_to_process)
 
     for bin_dict_sub_list in single_contig_bin_dict_list:
@@ -923,13 +968,13 @@ def get_single_contig_bins(essential_gene_df, good_bins_dict, n_dims, marker_set
     return list(good_bins_dict.keys())
 
 
-def asses_contig_completeness_purity(essential_gene_lol, n_dims, marker_sets_graph, tigrfam2pfam_data_dict):
+def asses_contig_completeness_purity(essential_gene_lol, n_dims, marker_sets_graph, tigrfam2pfam_data_dict, purity=0.90, completeness=0.90):
     single_contig_bins = []
     for contig_data in essential_gene_lol:
         all_ess = contig_data[1]
         marker_set = choose_checkm_marker_set(all_ess, marker_sets_graph, tigrfam2pfam_data_dict)
         taxon, comp, pur = marker_set[0], marker_set[1], marker_set[2]
-        if pur > 0.95 and comp > 0.90:
+        if pur > purity  and comp > completeness:
             bin_dict = {contig_data[0]: {'depth1': np.array([None]), 'contigs': np.array([contig_data[0]]),
                                         'essential': np.array(all_ess), 'purity': pur, 'completeness': comp,
                                          'taxon': taxon}}
@@ -1259,7 +1304,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
     perp_1 = 30  # 10
     perp_2 = 200 # 100
     hdbscan_epsilon = hdbscan_epsilon_range[0]
-    hdbs_min_samp_ind = 0
+    tsne_perp_ind = 0
     perp_1_done = False
     perp_2_done = False
     while embedding_tries <= max_embedding_tries:
@@ -1365,27 +1410,17 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
-        perp_range = [10, 30]  # [5, 30]
+        perp_range = [5, 10, 30, 100]  # [5, 30]
 
         learning_rate_factor_range = [12, 12]
 
-        if embedding_tries > 1:
-            if perp < perp_range[1]:
-                perp += 20 # 25
-                pk_factor = 1.5
-            else:
-                perp = perp_range[0]
-                pk_factor = 1
+        perp = perp_range[tsne_perp_ind]
+        tsne_perp_ind += 1
+        if tsne_perp_ind == len(perp_range):
+            tsne_perp_ind = 0
 
-            if learning_rate_factor > learning_rate_factor_range[1]:
-                learning_rate_factor -= 6
-            else:
-                learning_rate_factor = learning_rate_factor_range[0]
-
-        else:
-            perp = perp_range[0]
-            pk_factor = 1
-            learning_rate_factor = learning_rate_factor_range[0]
+        pk_factor = 1
+        learning_rate_factor = 12
 
         learning_rate = int(len(x_pca)/learning_rate_factor)
         logging.info(f'optSNE learning rate: {learning_rate}, perplexity: {perp}, pk_factor: {pk_factor}')
@@ -1463,27 +1498,27 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
         if not list(good_bins.keys()) and internal_completeness > min_completeness and final_try_counter == 0:
             internal_completeness -= 5
-            if 80 < internal_completeness <= 85:
-                if min_purity < 87.5:
-                    min_purity = 87.5
-            elif 75 < internal_completeness <= 80:
-                if min_purity < 90:
-                    min_purity = 90
-            elif internal_completeness <= 75:
-                if min_purity < 95:
-                    min_purity = 95
+            # if 80 < internal_completeness <= 85:
+            #     if min_purity < 87.5:
+            #         min_purity = 87.5
+            # elif 75 < internal_completeness <= 80:
+            #     if min_purity < 90:
+            #         min_purity = 90
+            # elif internal_completeness <= 75:
+            #     if min_purity < 95:
+            #         min_purity = 95
             logging.info('Found no good bins. Minimum completeness lowered to {0},'
                          ' minimum purity is {1}.'.format(internal_completeness, min_purity))
         elif not list(good_bins.keys()) and final_try_counter < 10\
-                and not prev_round_internal_min_marker_cont_size < 1:  # internal_min_marker_cont_size > prev_round_internal_min_marker_cont_size:
+                and not prev_round_internal_min_marker_cont_size <= 0:  # internal_min_marker_cont_size > prev_round_internal_min_marker_cont_size:
             internal_min_marker_cont_size = 2500 - 500 * final_try_counter
             if internal_min_marker_cont_size > 0:
                 internal_min_cont_size = internal_min_marker_cont_size
             else:
                 internal_min_cont_size = 500
             final_try_counter += 1
-            internal_completeness = 90
-            min_purity = 90
+            internal_completeness = min_completeness
+            # min_purity = 90
             logging.info('Final attempt with contigs >= {0}bp,'
                          ' minimum completeness {1}, and minimum purity {2}.'.format(internal_min_marker_cont_size,
                                                                                      internal_completeness, min_purity))

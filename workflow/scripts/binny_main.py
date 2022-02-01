@@ -36,7 +36,7 @@ dist_metric = snakemake.params['distance_metric']
 threads = snakemake.threads
 log = snakemake.log[0]
 
-starting_completeness = 90
+starting_completeness = 70
 n_dim = 2
 
 
