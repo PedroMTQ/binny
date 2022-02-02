@@ -184,6 +184,8 @@ def hdbscan_cluster(contig_data_df, pk=None, pk_factor=2, include_depth=False, n
         pk = get_perp(contig_data_df['contig'].size, pk_factor)
         if pk < len(dims) * 2:
             pk = len(dims) * 2
+    if hdbscan_min_samples > pk:
+        hdbscan_min_samples = pk
     with parallel_backend('threading'):
         np.random.seed(0)
         logging.info('HDBSCAN: min_cluster_size={0}, min_samples={1}, cluster_selection_epsilon={2}, '
@@ -1410,7 +1412,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
-        perp_range = [5, 10, 30, 100]  # [5, 30]
+        perp_range = [10, 30, 100]  # [5, 30]
 
         learning_rate_factor_range = [12, 12]
 

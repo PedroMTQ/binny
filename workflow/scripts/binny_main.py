@@ -27,8 +27,8 @@ max_contig_threshold = float(snakemake.params['max_n_contigs'])
 max_embedding_tries = int(snakemake.params['max_embedding_tries'])
 tsne_early_exag_iterations = int(snakemake.params['tsne_early_exag_iterations'])
 tsne_main_iterations = int(snakemake.params['tsne_main_iterations'])
-include_depth_initial = snakemake.params['include_depth_initial']
-include_depth_main = snakemake.params['include_depth_main']
+include_depth_initial = eval(snakemake.params['include_depth_initial'])
+include_depth_main = eval(snakemake.params['include_depth_main'])
 hdbscan_epsilon_range = [float(epsilon) for epsilon in snakemake.params['hdbscan_epsilon_range'].split(',')]
 hdbscan_min_samples = int(snakemake.params['hdbscan_min_samples'])
 dist_metric = snakemake.params['distance_metric']
@@ -36,7 +36,7 @@ dist_metric = snakemake.params['distance_metric']
 threads = snakemake.threads
 log = snakemake.log[0]
 
-starting_completeness = 70
+starting_completeness = 90
 n_dim = 2
 
 
