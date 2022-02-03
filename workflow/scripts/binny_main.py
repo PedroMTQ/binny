@@ -27,8 +27,8 @@ max_contig_threshold = float(snakemake.params['max_n_contigs'])
 max_embedding_tries = int(snakemake.params['max_embedding_tries'])
 tsne_early_exag_iterations = int(snakemake.params['tsne_early_exag_iterations'])
 tsne_main_iterations = int(snakemake.params['tsne_main_iterations'])
-include_depth_initial = snakemake.params['include_depth_initial']
-include_depth_main = snakemake.params['include_depth_main']
+include_depth_initial = eval(snakemake.params['include_depth_initial'])
+include_depth_main = eval(snakemake.params['include_depth_main'])
 hdbscan_epsilon = float(snakemake.params['hdbscan_epsilon'])
 hdbscan_min_samples = int(snakemake.params['hdbscan_min_samples'])
 dist_metric = snakemake.params['distance_metric']
@@ -105,6 +105,11 @@ x_contigs = [c_kfreq[0] for c_kfreq in kfreq_array[1:] if not sum(c_kfreq[1:]) =
 
 main_contig_data_dict = {cont: seq for cont, seq in zip(x_contigs, x)}
 
+sorted_contigs = sorted(main_contig_data_dict.keys())
+with open('kmer_freqs.tsv', 'w') as f:
+    for c in sorted_contigs:
+        f.write('{0}\t{1}\n'.format(c, '\t'.join([str(i) for i in main_contig_data_dict[c]])))
+
 # Load depth data
 depth_dict = load_depth_dict(mg_depth_file)
 
@@ -139,10 +144,10 @@ for contig, k_freq in main_contig_data_dict.items():
                                   'k-mer_freqs': ';'.join([str(k) for k in list(k_freq)]),
                                   'depths': ';'.join([str(d) for d in list(depth_dict.get(contig))])}
 
-compression_opts = dict(method='zip', archive_name='contig_data.tsv')  
+compression_opts = dict(method='zip', archive_name='contig_data.tsv')
 
 contig_data_df = pd.DataFrame.from_dict(all_cont_data_dict, orient='index', columns=['bin', 'k-mer_freqs', 'depths'])
 
-contig_data_df.to_csv('contig_data.zip', header=True, index=True, index_label='contig', chunksize=1000, compression=compression_opts, sep='\t')  
+contig_data_df.to_csv('contig_data.zip', header=True, index=True, index_label='contig', chunksize=1000, compression=compression_opts, sep='\t')
 
 logging.info('Run finished.')

@@ -23,6 +23,7 @@ from skbio.stats.composition import clr, multiplicative_replacement
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 
+import time
 
 def unify_multi_model_genes(gene, markers='essential'):
     # Dict to unify genes with multiple models
@@ -165,9 +166,13 @@ def hdbscan_cluster(contig_data_df, pk=None, include_depth=False, n_jobs=1, hdbs
                     dist_metric='manhattan'):
     dims = [i for i in contig_data_df.columns if 'dim' in i and not '_' in i]
     depths = [i for i in contig_data_df.columns if 'depth' in i]
+    depth_var_type = type(include_depth)
+    logging.info(f'{include_depth}, {depth_var_type}')
     if not include_depth:
+        logging.info('Not including depth in dim_df')
         dim_df = contig_data_df.loc[:, dims].to_numpy(dtype=np.float64)
     else:
+        logging.info('Including depth in dim_df')
         dim_df = contig_data_df.loc[:, dims + depths].to_numpy(dtype=np.float64)
     if not pk:
         pk = get_perp(contig_data_df['contig'].size)
@@ -176,6 +181,13 @@ def hdbscan_cluster(contig_data_df, pk=None, include_depth=False, n_jobs=1, hdbs
 
     with parallel_backend('threading'):
         np.random.seed(0)
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        dim_df_matrix = sorted(['\t'.join([str(i) for i in e]) for e in dim_df])
+        with open(f'initial_scan_dim_df_{timestr}.tsv', 'w') as f:
+            for i in dim_df_matrix:
+                f.write(i + '\n')
+        logging.info(f'HDBSCAN: min_cluster_size={pk}, include_depth={include_depth}, min_samples={hdbscan_min_samples},'
+                     f' cluster_selection_epsilon={hdbscan_epsilon}, metric={dist_metric}')
         hdbsc = hdbscan.HDBSCAN(core_dist_n_jobs=n_jobs, min_cluster_size=pk, min_samples=hdbscan_min_samples,
                                 cluster_selection_epsilon=hdbscan_epsilon, metric=dist_metric).fit(dim_df)
     cluster_labels = hdbsc.labels_
@@ -202,6 +214,8 @@ def run_initial_scan(contig_data_df, initial_cluster_mode, dbscan_threads, pk=No
         pk = get_perp(contig_data_df['contig'].size)
     if initial_cluster_mode == 'HDBSCAN' or not initial_cluster_mode:
         logging.info('Running initial scan with HDBSCAN.')
+        logging.info(f'Parameters: threads: {dbscan_threads}, include_depth: {include_depth}, pk: {pk}, hdbscan_epsilon: {hdbscan_epsilon},'
+                     f' hdbscan_min_samples: {hdbscan_min_samples}, dist_metric: {dist_metric}')
         first_clust_dict, labels = hdbscan_cluster(contig_data_df, pk=pk, n_jobs=dbscan_threads,
                                                    include_depth=include_depth, hdbscan_epsilon=hdbscan_epsilon,
                                                    hdbscan_min_samples=hdbscan_min_samples, dist_metric=dist_metric)
@@ -436,7 +450,7 @@ def divide_clusters_by_depth(ds_clstr_dict, threads, marker_sets_graph, tigrfam2
             sub_clstr_res = Parallel(n_jobs=threads)\
                                     (delayed(get_sub_clusters)(cluster_dict_list, inner_max_threads, marker_sets_graph,
                                                                tigrfam2pfam_data_dict, purity_threshold=min_purity,
-                                                               completeness_threshold=min_completeness, 
+                                                               completeness_threshold=min_completeness,
                                                                pk=pk, cluster_mode=cluster_mode,
                                                                include_depth=include_depth,
                                                                hdbscan_epsilon=hdbscan_epsilon,
@@ -533,7 +547,7 @@ def write_scatterplot(df, hue, file_path=None):
             fake_dot = ax.scatter(df['dim1'].iloc[0], df['dim2'].iloc[0], df['dim3'].iloc[0], s=1.5, color=e)
             fake_list.append(fake_dot)
         ax.legend(fake_list, [str(i) for i in sorted_set], markerscale=2)
-        plt.show()
+        # plt.show()
         if file_path:
             plt.savefig(file_path)
             plt.clf()
@@ -541,7 +555,7 @@ def write_scatterplot(df, hue, file_path=None):
         scatter_plot = sns.scatterplot(data=df, x="dim1", y="dim2", hue=hue, sizes=2.5, s=2., palette=palette)
         scatter_plot.legend(fontsize=3, title="Clusters", title_fontsize=4, ncol=1,
                             bbox_to_anchor=(1.01, 1), borderaxespad=0)
-        plt.show()
+        # plt.show()
         if file_path:
             scatter_plot.get_figure().savefig(file_path)
             scatter_plot.get_figure().clf()  # Clear figure
@@ -780,11 +794,19 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
         max_tries = 2
 
     while n_iterations <= max_iterations and n_new_clusters > 0:
+
+        logging.info(f'threads: {threads}, include_depth: {include_depth_initial}, hdbscan_epsilon: {hdbscan_epsilon},'
+                     f' hdbscan_min_samples: {hdbscan_min_samples}, dist_metric: {dist_metric}, ')
+
         init_clust_dict, labels = run_initial_scan(leftovers_df, 'HDBSCAN', threads, include_depth=include_depth_initial,
                                                    hdbscan_epsilon=hdbscan_epsilon,
                                                    hdbscan_min_samples=hdbscan_min_samples, dist_metric=dist_metric)
 
         logging.info('Initial clustering resulted in {0} clusters.'.format(len(set(labels))))
+
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        write_scatterplot(leftovers_df, labels, '{0}_HDBSCAN_label_scatter_plot_eps_{1}_it_{2}.pdf'.format(
+            timestr, 0.25, embedding_iteration))
 
         if n_iterations == 1:
             for cluster in init_clust_dict:
@@ -1128,7 +1150,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                            if len(assembly_dict[cont]) >= internal_min_marker_cont_size]
                 round_x_contigs = [cont for cont in round_leftovers_contig_list
                                    if len(assembly_dict[cont]) >= internal_min_marker_cont_size]
-                round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list_backup 
+                round_leftovers_contig_list = [cont for cont in round_leftovers_contig_list_backup
                                                if len(assembly_dict[cont]) < internal_min_marker_cont_size]
             del round_leftovers_contig_list_backup
 
@@ -1147,7 +1169,12 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         round_x = multiplicative_replacement(round_x)
         # Clr transform
         x_scaled = clr(round_x)
-        x_scaled = np.concatenate([round_x_depth, x_scaled], axis=1)        
+        x_scaled = np.concatenate([round_x_depth, x_scaled], axis=1)
+
+        feature_matrix = sorted(['\t'.join([c] + [str(i) for i in e]) for c, e in zip(round_x_contigs, x_scaled)])
+        with open(f'feature_matrix_it_{embedding_tries}.tsv', 'w') as f:
+            for i in feature_matrix:
+                f.write(i + '\n')
 
         # Manifold learning and dimension reduction.
         logging.info('Running manifold learning and dimension reduction.')
@@ -1171,7 +1198,12 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         logging.info('PCA stats: Dimensions: {0}; Amount of variation'
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
-        
+
+        pca_matrix = sorted(['\t'.join([c] + [str(i) for i in e]) for c, e in zip(round_x_contigs, x_pca)])
+        with open(f'pca_matrix_it_{embedding_tries}.tsv', 'w') as f:
+            for i in pca_matrix:
+                f.write(i + '\n')
+
         if embedding_tries > 1:
             if perp_1 < 20:
                 perp_1 += 2
@@ -1204,6 +1236,11 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         embedding_multiscale = embedding2.view(np.ndarray)
         logging.info('Finished t-SNE dimensionality-reduction.')
 
+        tsne_matrix = sorted(['\t'.join([c] + [str(i) for i in e]) for c, e in zip(round_x_contigs, embedding_multiscale)])
+        with open(f'tsne_matrix_it_{embedding_tries}.tsv', 'w') as f:
+            for i in tsne_matrix:
+                f.write(i + '\n')
+
         # Create coordinate df.
         dim_range = [i + 1 for i in range(n_dim)]
         coord_df = pd.DataFrame(data=embedding_multiscale, index=None, columns=['dim' + str(i) for i in dim_range])
@@ -1224,6 +1261,8 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         if embedding_tries == 1:
             contig_data_df_org = contig_data_df.copy()
 
+        contig_data_df.to_csv(f'contig_data_df_it_{embedding_tries}.tsv', sep='\t', index=False)
+
         # Find bins
         good_bins, final_init_clust_dict = binny_iterate(contig_data_df, threads, taxon_marker_sets, tigrfam2pfam_data,
                                                          min_purity, internal_completeness, 1,
@@ -1236,7 +1275,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                                                          contigs2clusters_out_path=contigs2clusters_out_path)
 
         logging.info('Good bins this embedding iteration: {0}.'.format(len(good_bins.keys())))
-        
+
         if not list(good_bins.keys()) and internal_completeness > min_completeness and final_try_counter == 0:
             internal_completeness -= 5
             if 80 < internal_completeness <= 85:
@@ -1262,7 +1301,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         elif not list(good_bins.keys()):
             logging.info('Reached min completeness and found no more bins. Exiting embedding iteration')
             break
-    
+
         prev_round_internal_min_marker_cont_size = internal_min_marker_cont_size
 
         round_clust_dict = {**good_bins, **final_init_clust_dict}
@@ -1289,7 +1328,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                           ' Removing them.'.format(len(round_leftovers['contig'].tolist())
                                                    - len(set(round_leftovers['contig'].tolist()))))
             round_leftovers.drop_duplicates(subset=['contig'])
-        
+
         if list(good_bins.keys()):
             good_bin_contig_df = contig_df_from_cluster_dict(good_bins)
             round_leftovers = round_leftovers[~round_leftovers['contig'].isin(good_bin_contig_df['contig'].tolist())]

@@ -1,0 +1,31 @@
+binning:
+  binny:
+    bin_quality:
+      completeness: 80
+      purity: 85
+    clustering:
+      hdbscan_epsilon: 0.25
+      hdbscan_min_samples: 2
+      include_depth_initial: 'False'
+      include_depth_main: 'True'
+    cutoff: 500
+    cutoff_marker: 0
+    distance_metric: manhattan
+    embedding:
+      max_iterations: 50
+      tsne_early_exag_iterations: 250
+      tsne_main_iterations: 750
+    kmers: 2,3,4
+    max_n_contigs: 3.5e5
+db_path: ../db
+mem:
+  big_mem_avail: false
+  big_mem_per_core_gb: 26
+  normal_mem_per_core_gb: 4
+outputdir: path/to/output/dir
+raws:
+  assembly: path/to/assembly
+  contig_depth: ''
+  metagenomics_alignment: ''
+sample: test
+tmp_dir: tmp
