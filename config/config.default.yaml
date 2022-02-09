@@ -28,9 +28,9 @@ binning:
     # Input a list, e.g. '2,3,4'.
     kmers: '2,3,4'
     # Minimum contig length.
-    cutoff: 1000
+    cutoff: 500
     # Minimum length of contigs containing CheckM markers.
-    cutoff_marker: 500
+    cutoff_marker: 0
     # Maximum number of contigs binny uses. If the number of available
     # contigs after minimum size filtering exceeds this, binny will
     # increase the minimum size threshold until the maximum is reached.
@@ -51,7 +51,7 @@ binning:
       # Increasing the HDBSCAN cluster selection epsilon max beyond 0.5
       # is not advised as it might massively increase run time, but it might
       # help recover fragmented genomes that would be missed with lower settings.
-      hdbscan_epsilon_range: '0.25,0.25'
+      hdbscan_epsilon_range: '0.125,0.25'
       # Adapted from the HDBSCAN manual: 'Measure of how conservative the
       # clustering should be. With larger values, more points will be declared
       # as noise, and clusters will be restricted to progressively more dense areas.'.
@@ -63,6 +63,6 @@ binning:
     bin_quality:
       # Minimum value binny will lower completeness to while running. It will
       # start at 90.
-      completeness: 70
+      completeness: 80
       # Minimum purity for bins to be selected.
       purity: 85

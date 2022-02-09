@@ -944,7 +944,7 @@ def binny_iterate(contig_data_df, threads, marker_sets_graph, tigrfam2pfam_data_
 
 
 def get_single_contig_bins(essential_gene_df, good_bins_dict, n_dims, marker_sets_graph, tigrfam2pfam_data_dict,
-                           threads=1, purity=0.75, completeness=0.85):
+                           threads=1, purity=0.75, completeness=0.90):
     essential_gene_lol = essential_gene_df.values.tolist()
     cluster_list = [[i[0], i[1].split(',')] for i in essential_gene_lol if len(set(i[1].split(','))) >= 40]
     cluster_list.sort(key=lambda i: i[1], reverse=True)
@@ -1412,7 +1412,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
                      ' explained: {1}%.'.format(n_comp, int(round(sum(pca.explained_variance_ratio_), 3) * 100)))
         x_pca = transformer.transform(x_scaled)
 
-        perp_range = [10, 30, 100]  # [5, 30]
+        perp_range = [10, 30, 5, 50]  # [5, 30]
 
         learning_rate_factor_range = [12, 12]
 
@@ -1482,13 +1482,13 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
 
         if embedding_tries > 1:
             if hdbscan_epsilon < hdbscan_epsilon_range[1]:
-                hdbscan_epsilon += 1  # 0.125
+                hdbscan_epsilon += 0.125  # 0.125
             else:
                 hdbscan_epsilon = hdbscan_epsilon_range[0]
 
         # Find bins
         good_bins, final_init_clust_dict = binny_iterate(contig_data_df, threads, taxon_marker_sets, tigrfam2pfam_data,
-                                                         min_purity, internal_completeness, pk_factor, 2,
+                                                         min_purity, internal_completeness, pk_factor, 1,
                                                          embedding_iteration=embedding_tries, max_tries=2,
                                                          include_depth_initial=include_depth_initial,
                                                          include_depth_main=include_depth_main,
