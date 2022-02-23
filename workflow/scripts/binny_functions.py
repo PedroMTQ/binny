@@ -1199,7 +1199,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
     internal_completeness = starting_completeness
     final_try_counter = 0
     tsne_perp_ind = 0
-    perp_range = list(range(10, 41, 5))[::-1]  # [30, 15] list(range(10, 21))
+    perp_range = list(range(25, 36, 2))  # [30, 15] list(range(10, 21))
     pk_factor = 1
     hdbscan_epsilon = hdbscan_epsilon_range[0]
     learning_rate_factor = 1.2
@@ -1288,7 +1288,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         if tsne_perp_ind == len(perp_range):
             tsne_perp_ind = 0
 
-        early_exagg = 1000
+        early_exagg = 12
         learning_rate = max(2, int(len(x_pca) / early_exagg))   # learning_rate_factor
         logging.info(f'optSNE learning rate: {learning_rate}, perplexity: {perp}, pk_factor: {pk_factor}')
 
