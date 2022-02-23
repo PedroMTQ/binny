@@ -1288,7 +1288,7 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         if tsne_perp_ind == len(perp_range):
             tsne_perp_ind = 0
 
-        early_exagg = 1000
+        early_exagg = 100
         learning_rate = max(2, int(len(x_pca) / early_exagg))   # learning_rate_factor
         logging.info(f'optSNE learning rate: {learning_rate}, perplexity: {perp}, pk_factor: {pk_factor}')
 
