@@ -1077,6 +1077,48 @@ def compare_marker_set_stats(marker_set, current_best_marker_set, completeness_v
     return current_best_marker_set
 
 
+def get_marker_list_node_quality_simple(marker_list, node, marker_sets_graph, tigrfam2pfam_data_dict):
+    node_marker_sets = marker_sets_graph.nodes.data()[node]['marker_sets']
+    node_all_markers = [marker for marker_set in node_marker_sets for marker in marker_set]
+    node_marker_sets_set = set(node_all_markers)
+    len_node_all_markers = len(node_all_markers)
+    len_node_all_markers_set = len(node_marker_sets_set)
+    if len_node_all_markers != len_node_all_markers_set:
+        dup = {x for x in node_all_markers if node_all_markers.count(x) > 1}
+        logging.warning('Duplicates in marker set {0}. len: {1}, len_set: {2}'.format(node, len_node_all_markers,
+                                                                                      len_node_all_markers_set))
+        logging.warning(f'{dup}\n{node_all_markers}')
+
+    node_markers_list_t2p = [marker for marker in marker_list
+                             for t2p_marker in [marker] + tigrfam2pfam_data_dict.get(marker, [])
+                             if t2p_marker in node_marker_sets_set]
+
+    node_markers_list = [marker for marker in marker_list if marker in node_marker_sets_set]
+
+    if not node_markers_list:
+        node_markers_list = node_markers_list_t2p
+
+    node_markers_set = set(node_markers_list_t2p)
+
+    node_markers_list_set_t2p = {marker_t2p for marker in node_markers_set
+                                 for marker_t2p in tigrfam2pfam_data_dict.get(marker, [])}
+
+    node_markers_list_set = node_markers_set.union(node_markers_list_set_t2p)
+
+    n_node_marker_sets = 0
+    for marker_set in node_marker_sets:
+        if marker_set.intersection(node_markers_list_set):
+            n_node_marker_sets += 1
+
+    if len(node_markers_list_set) == 0:
+        logging.debug('Found zero markers for marker set {0}.'.format(node))
+        return [0, 0]
+
+    node_marker_set_completeness = n_node_marker_sets / marker_sets_graph.nodes.data()[node]['marker_groups']
+    node_marker_set_purity = len(set(node_markers_list)) / len(node_markers_list)
+    return [node_marker_set_completeness, node_marker_set_purity]
+
+
 def choose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_dict):
     nodes = [n for n, d in marker_sets_graph.in_degree() if d == 0]
     current_node = nodes[0]
@@ -1106,7 +1148,7 @@ def choose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_d
 
             node_n_markers = marker_sets_graph.nodes.data()[node]['markers']
             node_n_marker_sets = marker_sets_graph.nodes.data()[node]['marker_groups']
-            node_stats = get_marker_list_node_quality(marker_list, node, marker_sets_graph,
+            node_stats = get_marker_list_node_quality_simple(marker_list, node, marker_sets_graph,
                                                       tigrfam2pfam_data_dict)
             if not node_stats:
                 continue
@@ -1167,7 +1209,6 @@ def choose_checkm_marker_set(marker_list, marker_sets_graph, tigrfam2pfam_data_d
         current_depth_level += 1
 
     if best_marker_set:
-        print(best_marker_set)
         return best_marker_set
     else:
         logging.debug('Something went wrong while choosing the best marker set. Markers:'
@@ -1458,11 +1499,11 @@ def iterative_embedding(x_contigs, depth_dict, all_good_bins, starting_completen
         if len(list(good_bins.keys())) < 3 and internal_completeness > min_completeness and final_try_counter == 0:
             internal_completeness -= 5
             logging.info(f'Found < 3 good bins. Minimum completeness lowered to {internal_completeness}.')
-        elif len(list(good_bins.keys())) < 3 and final_try_counter <= 10 \
+        elif len(list(good_bins.keys())) < 3 and final_try_counter <= 5 \
                 and not internal_min_marker_cont_size > prev_round_internal_min_marker_cont_size:
             if final_try_counter == 0:
                 max_contig_threshold *= 1.25
-            internal_min_marker_cont_size = 2500 - 250 * final_try_counter
+            internal_min_marker_cont_size = 2500 - 500 * final_try_counter
             final_try_counter += 1
             logging.info(f'Running with contigs >= {internal_min_marker_cont_size}bp, minimum completeness {internal_completeness}.')
         elif len(list(good_bins.keys())) < 2:
