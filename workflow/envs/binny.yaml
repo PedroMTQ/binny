@@ -1,0 +1,27 @@
+name: binny_v2
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - networkx=2.6.3
+  - snakemake=7.16.0
+#  - pandas=1.4.1
+  - pyarrow=7.0.0
+#  - python=3.6
+#  - seaborn=0.11.2
+  - hdbscan=0.8.28
+  - scikit-bio=0.5.6
+  - opentsne=0.6.1
+  - seqkit=2.1.0
+  - mantis_pfa=1.5.5
+#  - bcftools=1.9
+  - bedtools=2.29.2
+#  - samtools=1.9
+#  - vcftools=0.1.16
+#  - bwa=0.7.17
+  - prokka=1.14.6
+  - joblib==1.1.0
+  - pip:
+    - libtmux==0.15.8

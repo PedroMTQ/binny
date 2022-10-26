@@ -1,6 +1,5 @@
 import gzip
 import os
-import glob
 import re
 import shutil
 import sys
@@ -64,7 +63,7 @@ configfile:
 SRCDIR = srcdir("workflow/scripts")
 BINDIR = srcdir("workflow/bin")
 ENVDIR = srcdir("workflow/envs")
-CONDA_DIR = config['conda_source']
+CONDA_DIR = config['conda_env_path']
 
 if SRCDIR not in sys.path:
     sys.path.append(SRCDIR)
@@ -82,23 +81,23 @@ if not os.path.exists(OUTPUTDIR):
             os.makedirs(OUTPUTDIR)
 
 # input
-if os.path.isabs(os.path.expandvars(config['raws']['assembly'])):
-    CONTIGS = os.path.expandvars(config['raws']['assembly'])
+if os.path.isabs(os.path.expandvars(config['assembly'])):
+    CONTIGS = os.path.expandvars(config['assembly'])
 else:
-    CONTIGS = os.path.join(os.getcwd(), os.path.expandvars(config['raws']['assembly']))
+    CONTIGS = os.path.join(os.getcwd(), os.path.expandvars(config['assembly']))
 
 # Added depth file par to use instead of alignment
-if config['raws']['contig_depth']:
-    if os.path.isabs(os.path.expandvars(config['raws']['contig_depth'])):
-        CONTIG_DEPTH = os.path.expandvars(config['raws']['contig_depth'])
+if config['contig_depth']:
+    if os.path.isabs(os.path.expandvars(config['contig_depth'])):
+        CONTIG_DEPTH = os.path.expandvars(config['contig_depth'])
     else:
-        CONTIG_DEPTH = os.path.join(os.getcwd(),os.path.expandvars(config['raws']['contig_depth']))
+        CONTIG_DEPTH = os.path.join(os.getcwd(),os.path.expandvars(config['contig_depth']))
 else:
     CONTIG_DEPTH = None
-    if all([os.path.isabs(path) for path in glob.glob(config['raws']['metagenomics_alignment'])]):
-        MGaln = [os.path.expandvars(path) for path in glob.glob(config['raws']['metagenomics_alignment'])]
+    if all([os.path.isabs(path) for path in config['bam']]):
+        MGaln = [os.path.expandvars(path) for path in config['bam']]
     else:
-        MGaln = [os.path.join(os.getcwd(), os.path.expandvars(path)) for path in glob.glob(config['raws']['metagenomics_alignment'])]
+        MGaln = [os.path.join(os.getcwd(), os.path.expandvars(path)) for path in config['bam']]
     # Get filenames of all bam files without extension, even if the name contains '.'
     mappings_ids = ['.'.join(bam.split('/')[-1].split('.')[:-1]) for bam in MGaln]
     # print(mappings_ids)
@@ -110,39 +109,38 @@ else:
     # use a function (see Functions as Input Files) to provide an input file ...
     sample_id_map_dict = {map_id: 'sample_%06.d' % (index + 1) for index, map_id in enumerate(mappings_ids)}
 
-# Use existing env for Prokka if specified
-if config['prokka_env'] and config['prokka_env'].split('.')[-1] in ['yaml', 'yml']:
-    if os.path.isabs(config['prokka_env']):
-        PROKKA_ENV = os.path.expandvars(config['prokka_env'])
-    else:
-        PROKKA_ENV = os.path.join(os.getcwd(), config['prokka_env'])
-    print(PROKKA_ENV)
-elif config['prokka_env']:
-    PROKKA_ENV = config['prokka_env']
-    print('named', PROKKA_ENV)
-else:
-    PROKKA_ENV = None
-# Use existing env for Mantis if specified
-if config['mantis_env'] and config['mantis_env'].split('.')[-1] in ['yaml', 'yml']:
-    if os.path.isabs(config['mantis_env']):
-        MANTIS_ENV = os.path.expandvars(config['mantis_env'])
-    else:
-        MANTIS_ENV = os.path.join(os.getcwd(), config['mantis_env'])
-    print(MANTIS_ENV)
-elif config['mantis_env']:
-    MANTIS_ENV = config['mantis_env']
-    print('named', MANTIS_ENV)
-else:
-    MANTIS_ENV = None
+# # Use existing env for Prokka if specified
+# if config['prokka_env'] and config['prokka_env'].split('.')[-1] in ['yaml', 'yml']:
+#     if os.path.isabs(config['prokka_env']):
+#         PROKKA_ENV = os.path.expandvars(config['prokka_env'])
+#     else:
+#         PROKKA_ENV = os.path.join(os.getcwd(), config['prokka_env'])
+#     print(PROKKA_ENV)
+# elif config['prokka_env']:
+#     PROKKA_ENV = config['prokka_env']
+#     print('named', PROKKA_ENV)
+# else:
+#     PROKKA_ENV = None
+# # Use existing env for Mantis if specified
+# if config['mantis_env'] and config['mantis_env'].split('.')[-1] in ['yaml', 'yml']:
+#     if os.path.isabs(config['mantis_env']):
+#         MANTIS_ENV = os.path.expandvars(config['mantis_env'])
+#     else:
+#         MANTIS_ENV = os.path.join(os.getcwd(), config['mantis_env'])
+#     print(MANTIS_ENV)
+# elif config['mantis_env']:
+#     MANTIS_ENV = config['mantis_env']
+#     print('named', MANTIS_ENV)
+# else:
+#     MANTIS_ENV = None
 
 # hardware parameters
-MEMCORE = str(config['mem']['normal_mem_per_core_gb']) + "G"
-if config['mem']['big_mem_avail'] > 0:
-    BIGMEMCORE = str(config['mem']['big_mem_per_core_gb']) + "G"
-    BIGMEMS = config['mem']['big_mem_avail']
+MEMCORE = str(config['normal_mem_per_core_gb']) + "G"
+if config['big_mem_avail'] > 0:
+    BIGMEMCORE = str(config['big_mem_per_core_gb']) + "G"
+    BIGMEMS = config['big_mem_avail']
 else:
     BIGMEMCORE = False
-    
 
 #clean up sample name
 SAMPLE = config['sample']
@@ -151,37 +149,37 @@ if SAMPLE == "":
 SAMPLE = re.sub("_+","_",re.sub("[;|.-]","_",SAMPLE))
 
 
-#set up DBs, if necessary
-if not config['db_path']:
-    DBPATH = srcdir('database')
-else:
-    DBPATH = os.path.expandvars(config['db_path'])
-    if not os.path.isabs(DBPATH):
-        DBPATH = os.path.join(os.getcwd(), DBPATH)
-if not os.path.exists(DBPATH):
-    print("Setting up marker database")
-    os.makedirs(DBPATH)
-    urllib.request.urlretrieve("https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz", os.path.join(DBPATH, "checkm_data_2015_01_16.tar.gz"))
-    checkm_tar = tarfile.open(os.path.join( DBPATH, "checkm_data_2015_01_16.tar.gz"))
-    checkm_tar.extract("./taxon_marker_sets.tsv",DBPATH)
-    checkm_tar.extract("./pfam/tigrfam2pfam.tsv",DBPATH)
-    checkm_tar.extract("./hmms/checkm.hmm",DBPATH)
-    markers_df = pd.read_csv(os.path.join(DBPATH, 'taxon_marker_sets.tsv'), sep='\t', skipinitialspace=True, header=None)
-    markers_df = markers_df.sort_values(markers_df.columns[2])
-    markers_df.to_csv(os.path.join(DBPATH, "taxon_marker_sets_lineage_sorted.tsv"), header=None, index=None, sep="\t")
-    prepCheckM.remove_unused_checkm_hmm_profiles(os.path.join(DBPATH, "hmms/checkm.hmm"), os.path.join(DBPATH, 'taxon_marker_sets.tsv'), os.path.join(DBPATH, "pfam/tigrfam2pfam.tsv"), os.path.join(DBPATH, "hmms"))
-    if os.path.exists(os.path.join(DBPATH, "checkm_data_2015_01_16.tar.gz")):
-        os.remove(os.path.join(DBPATH, "checkm_data_2015_01_16.tar.gz"))
-    if os.path.exists(os.path.join(DBPATH, "hmms/checkm.hmm")):
-        os.remove(os.path.join(DBPATH, "hmms/checkm.hmm"))
-    if os.path.exists(os.path.join(DBPATH, "taxon_marker_sets.tsv")) and os.path.exists(os.path.join(DBPATH, "taxon_marker_sets_lineage_sorted.tsv")):
-        os.remove(os.path.join(DBPATH, "taxon_marker_sets.tsv"))
-    print("Initializing conda environments.")
+# #set up DBs, if necessary
+# if not config['db_path']:
+#     DBPATH = srcdir('database')
+# else:
+#     DBPATH = os.path.expandvars(config['db_path'])
+#     if not os.path.isabs(DBPATH):
+#         DBPATH = os.path.join(os.getcwd(), DBPATH)
+# if not os.path.exists(DBPATH):
+#     print("Setting up marker database")
+#     os.makedirs(DBPATH)
+#     urllib.request.urlretrieve("https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz", os.path.join(DBPATH, "checkm_data_2015_01_16.tar.gz"))
+#     checkm_tar = tarfile.open(os.path.join( DBPATH, "checkm_data_2015_01_16.tar.gz"))
+#     checkm_tar.extract("./taxon_marker_sets.tsv",DBPATH)
+#     checkm_tar.extract("./pfam/tigrfam2pfam.tsv",DBPATH)
+#     checkm_tar.extract("./hmms/checkm.hmm",DBPATH)
+#     markers_df = pd.read_csv(os.path.join(DBPATH, 'taxon_marker_sets.tsv'), sep='\t', skipinitialspace=True, header=None)
+#     markers_df = markers_df.sort_values(markers_df.columns[2])
+#     markers_df.to_csv(os.path.join(DBPATH, "taxon_marker_sets_lineage_sorted.tsv"), header=None, index=None, sep="\t")
+#     prepCheckM.remove_unused_checkm_hmm_profiles(os.path.join(DBPATH, "hmms/checkm.hmm"), os.path.join(DBPATH, 'taxon_marker_sets.tsv'), os.path.join(DBPATH, "pfam/tigrfam2pfam.tsv"), os.path.join(DBPATH, "hmms"))
+#     if os.path.exists(os.path.join(DBPATH, "checkm_data_2015_01_16.tar.gz")):
+#         os.remove(os.path.join(DBPATH, "checkm_data_2015_01_16.tar.gz"))
+#     if os.path.exists(os.path.join(DBPATH, "hmms/checkm.hmm")):
+#         os.remove(os.path.join(DBPATH, "hmms/checkm.hmm"))
+#     if os.path.exists(os.path.join(DBPATH, "taxon_marker_sets.tsv")) and os.path.exists(os.path.join(DBPATH, "taxon_marker_sets_lineage_sorted.tsv")):
+#         os.remove(os.path.join(DBPATH, "taxon_marker_sets.tsv"))
+#     print("Initializing conda environments.")
 
 # temporary directory will be stored inside the OUTPUTDIR directory
 # unless an absolute path is set
 TMPDIR = config['tmp_dir']
-if not os.path.isabs(TMPDIR):
+if not TMPDIR or not os.path.isabs(TMPDIR):
     TMPDIR = os.path.join(OUTPUTDIR, TMPDIR)
 if not os.path.exists(TMPDIR):
     os.makedirs(TMPDIR)
@@ -206,7 +204,6 @@ localrules: prepare_input_data, ALL
 rule ALL:
     input:
         os.path.join(OUTPUTDIR, 'binny.done')
-
 
 rule prepare_input_data:
     input:
@@ -240,8 +237,8 @@ rule format_assembly:
         mem = MEMCORE
     message:
         "Preparing assembly."
-    conda:
-       os.path.join(ENVDIR, "fasta_processing.yaml")
+#     conda:
+#        os.path.join(ENVDIR, "fasta_processing.yaml")
     shell:
        """
        seqkit seq {input} -o {output} -w 80 -m 499 \
@@ -263,8 +260,8 @@ if not CONTIG_DEPTH:
             mem = BIGMEMCORE if BIGMEMCORE else MEMCORE
         threads:
             1
-        conda:
-            os.path.join(ENVDIR, "mapping.yaml")
+#         conda:
+#             os.path.join(ENVDIR, "mapping.yaml")
         log:
             os.path.join(OUTPUTDIR, "logs/analysis_call_contig_depth_{sample}.log")
         message:
@@ -297,8 +294,8 @@ if not CONTIG_DEPTH:
             mem = MEMCORE
         threads:
             getThreads(1)
-        conda:
-            os.path.join(ENVDIR, "mapping.yaml")
+#         conda:
+#             os.path.join(ENVDIR, "mapping.yaml")
         log:
             os.path.join(OUTPUTDIR, "logs/merge_contig_depth.log")
         message:
@@ -341,8 +338,8 @@ rule annotate:
         os.path.join(OUTPUTDIR, "logs/analysis_annotate.log")
     benchmark:
         os.path.join(OUTPUTDIR, "logs/analysis_annotate_benchmark.txt")
-    conda:
-        PROKKA_ENV if PROKKA_ENV else os.path.join(ENVDIR, "prokka.yaml")
+#     conda:
+#         PROKKA_ENV if PROKKA_ENV else os.path.join(ENVDIR, "prokka.yaml")
     message:
         "annotate: Running prokkaP."
     shell:
@@ -376,8 +373,8 @@ rule mantis_checkm_marker_sets:
     resources:
         runtime = "48:00:00",
         mem = MEMCORE
-    conda:
-        MANTIS_ENV if MANTIS_ENV else os.path.join(ENVDIR, "mantis.yaml")
+#     conda:
+#         MANTIS_ENV if MANTIS_ENV else os.path.join(ENVDIR, "mantis.yaml")
     threads:
         getThreads(80)
     log:
@@ -410,12 +407,12 @@ rule binny:
         binny_out=OUTPUTDIR,
         sample=SAMPLE,
         py_functions=SRCDIR + "/binny_functions.py",
-        t2p=DBPATH + "/pfam/tigrfam2pfam.tsv",
-        marker_sets=DBPATH + "/taxon_marker_sets_lineage_sorted.tsv",
+        t2p=config['db_path'] + "/pfam/tigrfam2pfam.tsv",
+        marker_sets=config['db_path'] + "/taxon_marker_sets_lineage_sorted.tsv",
         gff=os.path.join(OUTPUTDIR, "intermediary/annotation_CDS_RNA_hmms_checkm.gff"),
-        min_completeness=config["bin_quality"]["min_completeness"],
-        start_completeness=config["bin_quality"]["start_completeness"],
-        purity=config["bin_quality"]["purity"],
+        min_completeness=config["min_completeness"],
+        start_completeness=config["start_completeness"],
+        purity=config["purity"],
         kmers=config["kmers"],
         mask_disruptive_sequences=config["mask_disruptive_sequences"],
         extract_scmags=config["extract_scmags"],
@@ -428,19 +425,19 @@ rule binny:
         max_n_contigs=config["max_n_contigs"],
         max_marker_lineage_depth_lvl=config["max_marker_lineage_depth_lvl"],
         distance_metric=config["distance_metric"],
-        max_embedding_tries=config["embedding"]["max_iterations"],
-        include_depth_initial=config["clustering"]["include_depth_initial"],
-        include_depth_main=config["clustering"]["include_depth_main"],
-        hdbscan_min_samples_range=config["clustering"]["hdbscan_min_samples_range"],
-        hdbscan_epsilon_range=config["clustering"]["hdbscan_epsilon_range"],
+        max_embedding_tries=config["max_iterations"],
+        include_depth_initial=config["include_depth_initial"],
+        include_depth_main=config["include_depth_main"],
+        hdbscan_min_samples_range=config["hdbscan_min_samples_range"],
+        hdbscan_epsilon_range=config["hdbscan_epsilon_range"],
         write_contig_data=config["write_contig_data"]
     resources:
         runtime = "12:00:00",
         mem = BIGMEMCORE if BIGMEMCORE else MEMCORE
     threads:
         getThreads(BIGMEMS) if BIGMEMCORE else getThreads(80)
-    conda:
-        os.path.join(ENVDIR, "binny_linux.yaml")
+#     conda:
+#         os.path.join(ENVDIR, "binny_linux.yaml")
     log:
         os.path.join(OUTPUTDIR, "logs/binning_binny.log")
     benchmark:

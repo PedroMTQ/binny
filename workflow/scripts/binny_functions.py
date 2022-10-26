@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-import seaborn as sns
+# import seaborn as sns
 from joblib import parallel_backend, Parallel, delayed
 from mpl_toolkits.mplot3d import Axes3D
 from openTSNE import TSNEEmbedding, affinity
@@ -586,46 +586,46 @@ def contig_df_from_cluster_dict(cluster_dict):
     return clust_contig_df
 
 
-def write_scatterplot(df, hue, file_path=None):
-    palette = sns.color_palette("husl", len(set(hue)))
-    sorted_set = []
-    for i in hue:
-        if i not in sorted_set:
-            sorted_set.append(i)
-    for index, i in enumerate(sorted_set):
-        if i == 'N':
-            palette[index] = ('silver')
-
-    dims = [i for i in df.keys() if 'dim' in i]
-    if len(dims) > 3 or len(dims) == 1:
-        logging.warning('More than 3 or 1 dimensions. Cant plot.')
-        return
-    elif len(dims) == 3:
-        df['cluster'] = hue
-        palette_dict = {cluster: color for cluster, color in zip(sorted_set, palette)}
-        fig = plt.figure()
-        ax = Axes3D(fig)
-        x = df['dim1']
-        y = df['dim2']
-        z = df['dim3']
-        ax.scatter(x, y, z, s=1.5, c=df['cluster'].map(palette_dict))
-        fake_list = []
-        for i, e in zip(sorted_set, palette):
-            fake_dot = ax.scatter(df['dim1'].iloc[0], df['dim2'].iloc[0], df['dim3'].iloc[0], s=1.5, color=e)
-            fake_list.append(fake_dot)
-        ax.legend(fake_list, [str(i) for i in sorted_set], markerscale=2)
-        plt.show()
-        if file_path:
-            plt.savefig(file_path)
-            plt.clf()
-    elif len(dims) == 2:
-        scatter_plot = sns.scatterplot(data=df, x="dim1", y="dim2", hue=hue, sizes=2.5, s=2., palette=palette)
-        scatter_plot.legend(fontsize=3, title="Clusters", title_fontsize=4, ncol=1,
-                            bbox_to_anchor=(1.01, 1), borderaxespad=0)
-        plt.show()
-        if file_path:
-            scatter_plot.get_figure().savefig(file_path)
-            scatter_plot.get_figure().clf()  # Clear figure
+# def write_scatterplot(df, hue, file_path=None):
+#     palette = sns.color_palette("husl", len(set(hue)))
+#     sorted_set = []
+#     for i in hue:
+#         if i not in sorted_set:
+#             sorted_set.append(i)
+#     for index, i in enumerate(sorted_set):
+#         if i == 'N':
+#             palette[index] = ('silver')
+#
+#     dims = [i for i in df.keys() if 'dim' in i]
+#     if len(dims) > 3 or len(dims) == 1:
+#         logging.warning('More than 3 or 1 dimensions. Cant plot.')
+#         return
+#     elif len(dims) == 3:
+#         df['cluster'] = hue
+#         palette_dict = {cluster: color for cluster, color in zip(sorted_set, palette)}
+#         fig = plt.figure()
+#         ax = Axes3D(fig)
+#         x = df['dim1']
+#         y = df['dim2']
+#         z = df['dim3']
+#         ax.scatter(x, y, z, s=1.5, c=df['cluster'].map(palette_dict))
+#         fake_list = []
+#         for i, e in zip(sorted_set, palette):
+#             fake_dot = ax.scatter(df['dim1'].iloc[0], df['dim2'].iloc[0], df['dim3'].iloc[0], s=1.5, color=e)
+#             fake_list.append(fake_dot)
+#         ax.legend(fake_list, [str(i) for i in sorted_set], markerscale=2)
+#         plt.show()
+#         if file_path:
+#             plt.savefig(file_path)
+#             plt.clf()
+#     elif len(dims) == 2:
+#         scatter_plot = sns.scatterplot(data=df, x="dim1", y="dim2", hue=hue, sizes=2.5, s=2., palette=palette)
+#         scatter_plot.legend(fontsize=3, title="Clusters", title_fontsize=4, ncol=1,
+#                             bbox_to_anchor=(1.01, 1), borderaxespad=0)
+#         plt.show()
+#         if file_path:
+#             scatter_plot.get_figure().savefig(file_path)
+#             scatter_plot.get_figure().clf()  # Clear figure
 
 
 def load_fasta(fasta):
