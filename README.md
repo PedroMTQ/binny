@@ -24,7 +24,7 @@ my_env_manager='mamba' # or 'conda'
 my_conda_env_path="absolute/path/to/conda/env/dir" #adjust path here
 
 # If the conda channel priority is set to 'strict', the env creation will likely fail
-# so you might use:
+# so you might need to use:
 # conda config --set channel_priority flexible
 
 ${my_env_manager} env create --file workflow/envs/binny.yaml
