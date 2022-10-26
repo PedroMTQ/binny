@@ -10,7 +10,8 @@ Make sure you have conda (and optionally, recommended mamba) installed.
 
 1) Clone this repository with git
 ```
-git clone https://github.com/a-h-b/binny.git
+# git clone https://github.com/a-h-b/binny.git
+git clone -b sk_v17 https://github.com/ohickl/binny.git
 cd binny
 ```
 
@@ -19,12 +20,14 @@ cd binny
 # Optional:
 my_conda_env_path="absolute/path/to/conda/env/dir" #adjust path here
 
-# if the conda channel priority is set to 'strict', the env creation will likely fail so you might use:
+# If the conda channel priority is set to 'strict', the env creation will likely fail
+# so you might use:
 # conda config --set channel_priority flexible
 
-mamba install --file workflow/envs/binny.yaml
+mamba env create --file workflow/envs/binny.yaml
+
 # or
-# mamba install --file workflow/envs/binny.yaml --prefix ${my_conda_env_path}
+# mamba env create --file workflow/envs/binny.yaml --prefix ${my_conda_env_path}
 
 # If necessary:
 # conda config --set channel_priority strict
@@ -32,6 +35,8 @@ mamba install --file workflow/envs/binny.yaml
 
 3) Database and Mantis setup with test run.
 ```
+
+
 ./binny --outputdir test_output \
         --assembly test/contigs_4bins.fa \
         --bam test/reads_4bins*.bam \
