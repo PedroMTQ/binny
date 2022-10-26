@@ -11,6 +11,25 @@ import sys
 import os
 import glob
 
+sm_pur = snakemake.params['purity']
+sm_m_comp = snakemake.params['min_completeness']
+sm_s_comp = snakemake.params['start_completeness']
+sm_mask = snakemake.params['mask_disruptive_sequences']
+sm_scmag = snakemake.params['extract_scmags']
+sm_nx = snakemake.params['nx_val']
+sm_min_co = snakemake.params['min_cutoff']
+sm_max_co = snakemake.params['max_cutoff']
+sm_min_m_co = snakemake.params['min_cutoff_marker']
+sm_max_m_co = snakemake.params['max_cutoff_marker']
+sm_n_cont = snakemake.params['max_n_contigs']
+sm_mark_lvl = snakemake.params['max_marker_lineage_depth_lvl']
+sm_n_tries = snakemake.params['max_embedding_tries']
+sm_i_depth = snakemake.params['include_depth_initial']
+sm_m_depth = snakemake.params['include_depth_main']
+sm_e_range = snakemake.params['hdbscan_epsilon_range']
+sm_m_s_range = snakemake.params['hdbscan_min_samples_range']
+sm_write = snakemake.params['write_contig_data']
+
 binny_out = snakemake.params['binny_out']
 sample = snakemake.params['sample']
 mg_depth_file = snakemake.input['mgdepth']
@@ -21,27 +40,27 @@ tigrfam2pfam_file = snakemake.params['t2p']
 taxon_marker_set_file = snakemake.params['marker_sets']
 prokka_checkm_marker_hmm_out = snakemake.input['hmm_markers']
 functions = snakemake.params['py_functions']
-min_purity = float(snakemake.params['purity'])
-min_completeness = float(snakemake.params['min_completeness'])
-starting_completeness = float(snakemake.params['start_completeness'])
+min_purity = float(sm_pur) if type(sm_pur) == str else sm_pur
+min_completeness = float(sm_m_comp) if type(sm_m_comp) == str else sm_m_comp
+starting_completeness = float(sm_s_comp) if type(sm_s_comp) == str else sm_s_comp
 kmers = snakemake.params['kmers']
-mask_disruptive_sequences = eval(snakemake.params['mask_disruptive_sequences'])
-extract_scmags = eval(snakemake.params['extract_scmags'])
+mask_disruptive_sequences = eval(sm_mask) if type(sm_mask) == str else sm_mask
+extract_scmags = eval(sm_scmag) if type(sm_scmag) == str else sm_scmag
 coassembly_mode = snakemake.params['coassembly_mode']
-nx_val = int(snakemake.params['nx_val'])
-min_contig_length = int(snakemake.params['min_cutoff'])
-max_contig_length = int(snakemake.params['max_cutoff'])
-min_contig_length_marker = int(snakemake.params['min_cutoff_marker'])
-max_contig_length_marker = int(snakemake.params['max_cutoff_marker'])
-max_contig_threshold = float(snakemake.params['max_n_contigs'])
-max_marker_lineage_depth_lvl = int(snakemake.params['max_marker_lineage_depth_lvl'])
-max_embedding_tries = int(snakemake.params['max_embedding_tries'])
-include_depth_initial = eval(snakemake.params['include_depth_initial'])
-include_depth_main = eval(snakemake.params['include_depth_main'])
-hdbscan_epsilon_range = [float(epsilon) for epsilon in snakemake.params['hdbscan_epsilon_range'].split(',')]
-hdbscan_min_samples_range = [int(min_sample) for min_sample in snakemake.params['hdbscan_min_samples_range'].split(',')]
+nx_val = int(sm_nx) if type(sm_nx) == str else sm_nx
+min_contig_length = int(sm_min_co) if type(sm_min_co) == str else sm_min_co
+max_contig_length = int(sm_max_co) if type(sm_max_co) == str else sm_max_co
+min_contig_length_marker = int(sm_min_m_co) if type(sm_min_m_co) == str else sm_min_m_co
+max_contig_length_marker = int(sm_max_m_co) if type(sm_max_m_co) == str else sm_max_m_co
+max_contig_threshold = float(sm_n_cont) if type(sm_n_cont) == str else sm_n_cont
+max_marker_lineage_depth_lvl = int(sm_mark_lvl) if type(sm_mark_lvl) == str else sm_mark_lvl
+max_embedding_tries = int(sm_n_tries) if type(sm_n_tries) == str else sm_n_tries
+include_depth_initial = eval(sm_i_depth) if type(sm_i_depth) == str else sm_i_depth
+include_depth_main = eval(sm_m_depth) if type(sm_m_depth) == str else sm_m_depth
+hdbscan_epsilon_range = [float(epsilon) for epsilon in sm_e_range.split(',')] if type(sm_e_range) == str else sm_e_range
+hdbscan_min_samples_range = [int(min_sample) for min_sample in sm_m_s_range.split(',')] if type(sm_m_s_range) == str else sm_m_s_range
 dist_metric = snakemake.params['distance_metric']
-write_contig_data = eval(snakemake.params['write_contig_data'])
+write_contig_data = eval(sm_write) if type(sm_write) == str else sm_write
 
 intermediary_file_dir = 'intermediary'
 
