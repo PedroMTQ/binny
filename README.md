@@ -6,7 +6,7 @@
 
 ## Requirements
 At the moment binny only runs on Linux. \
-Conda (and optionally, recommended mamba) need to be installed.
+Conda (and optionally, recommended Mamba) as well as Git need to be available.
 
 ## Quickstart
 Here is a quick guide on the installation and test run of binny. Please check out the longer description below to set up binny on a cluster environment.
