@@ -4,9 +4,12 @@
 
 # binny
 
+## Requirements
+At the moment binny only runs on Linux.
+conda (and optionally, recommended mamba) needs to be installed.
+
 ## Quickstart
 Here is a quick guide on the installation and test run of binny. Please check out the longer description below to set up binny on a cluster environment.
-Make sure you have conda (and optionally, recommended mamba) installed.
 
 1) Clone this repository with git
 ```
