@@ -17,6 +17,9 @@ cd binny
 
 2) Create the binny environment (mamba is recommended for speed over conda).
 ```
+# Choose env manager
+my_env_manager='mamba' # or 'conda'
+
 # Optional:
 my_conda_env_path="absolute/path/to/conda/env/dir" #adjust path here
 
@@ -24,10 +27,10 @@ my_conda_env_path="absolute/path/to/conda/env/dir" #adjust path here
 # so you might use:
 # conda config --set channel_priority flexible
 
-mamba env create --file workflow/envs/binny.yaml
+${my_env_manager} env create --file workflow/envs/binny.yaml
 
 # or
-# mamba env create --file workflow/envs/binny.yaml --prefix ${my_conda_env_path}
+# ${my_env_manager} env create --file workflow/envs/binny.yaml --prefix ${my_conda_env_path}
 
 # If necessary:
 # conda config --set channel_priority strict
@@ -35,7 +38,7 @@ mamba env create --file workflow/envs/binny.yaml
 
 3) Database and Mantis setup with test run.
 ```
-
+${my_env_manager} activate binny # or ${my_env_manager} activate ${my_conda_env_path}/binny
 
 ./binny --outputdir test_output \
         --assembly test/contigs_4bins.fa \
