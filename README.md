@@ -54,6 +54,7 @@ ${my_env_manager} activate binny # or ${my_env_manager} activate ${my_conda_env_
 ```
 
 If all goes well, binny will run in the current session, load the CheckM data, setup Mantis, and make and fill a directory called `test_output`. A completed run should contain four fasta files with one bin each in `test_output/bins`. 
+If so, binny is good to go.
 
 To view all available parameters and accompanying explanations use `./binny --help`
 
