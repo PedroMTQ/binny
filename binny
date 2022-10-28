@@ -12,6 +12,7 @@ import subprocess
 import tarfile
 import pandas as pd
 import snakemake
+from distutils.sysconfig import get_python_lib
 
 try:
     from mantis.assembler import check_installation, setup_databases
@@ -27,7 +28,8 @@ except (ImportError, ModuleNotFoundError):
 
 
 
-binny_dir = os.path.abspath(os.path.dirname(__file__))
+# binny_dir = os.path.abspath(os.path.dirname(__file__))
+binny_dir = f'{get_python_lib()}/binny'
 snakefile = os.path.join(binny_dir, "Snakefile")
 def_configfile = os.path.join(binny_dir, 'config/config.default.yaml')
 int_config = os.path.join(binny_dir, 'config/binny_snakemake_defaults.yaml')
