@@ -1,0 +1,36 @@
+###################################
+########## DO NO CHANGE ###########
+### INTERNAL SNAKEMAKE DEFAULTS ###
+###################################
+sample: ""
+big_mem_avail: 0
+big_mem_per_core_gb: 26
+normal_mem_per_core_gb: 2
+tmp_dir: tmp
+assembly: ""
+bam: ""
+contig_depth: ""
+outputdir: "output"
+db_path: ""
+conda_env_path: ""
+kmers: '2,3,4'
+mask_disruptive_sequences: 'True'
+extract_scmags: 'True'
+coassembly_mode: 'auto'
+NX_value: 90
+min_cont_length_cutoff: 2250
+max_cont_length_cutoff: 2250
+min_cont_length_cutoff_marker: 2250
+max_cont_length_cutoff_marker: 2250
+max_n_contigs: 5.0e5
+max_marker_lineage_depth_lvl: 2
+distance_metric: 'manhattan'
+max_iterations: 50
+hdbscan_epsilon_range: '0.250,0.000'
+hdbscan_min_samples_range: '1,5,10'
+include_depth_initial: 'False'
+include_depth_main: 'False'
+min_completeness: 72.5
+start_completeness: 92.5
+purity: 95
+write_contig_data: 'True'

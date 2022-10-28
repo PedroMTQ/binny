@@ -19,23 +19,27 @@ cd binny
 ```
 
 2) Create the binny environment (mamba is recommended for speed over conda).
+
+Set up environment manager (and optionally channel priority)
 ```
 # Choose env manager
 my_env_manager='mamba' # or 'conda'
 
-# Optional:
+# Optional: Set path to desired location to install conda environment into
 my_conda_env_path="absolute/path/to/conda/env/dir" #adjust path here
 
 # If the conda channel priority is set to 'strict', the env creation will likely fail
 # so you might need to use:
 # conda config --set channel_priority flexible
+```
 
+Create binny environment
+```
+# ${my_env_manager} set in previous step.
+# Optionally set target path to install to with --prefix ${my_conda_env_path}
 ${my_env_manager} env create --file workflow/envs/binny.yaml
 
-# or
-# ${my_env_manager} env create --file workflow/envs/binny.yaml --prefix ${my_conda_env_path}
-
-# If necessary:
+# If necessary change conda channel priority back to strict:
 # conda config --set channel_priority strict
 ```
 
