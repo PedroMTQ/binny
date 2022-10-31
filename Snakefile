@@ -55,9 +55,9 @@ def _process_file(fname, inp, outfilename):
 
 
 
-# default configuration file
-configfile:
-    srcdir("config/config.default.yaml")
+# # default configuration file
+# configfile:
+#     srcdir("config/config.default.yaml")
 
 # some parameters
 SRCDIR = srcdir("workflow/scripts")
@@ -180,7 +180,7 @@ SAMPLE = re.sub("_+","_",re.sub("[;|.-]","_",SAMPLE))
 # unless an absolute path is set
 TMPDIR = config['tmp_dir']
 if not TMPDIR or not os.path.isabs(TMPDIR):
-    TMPDIR = os.path.join(OUTPUTDIR, TMPDIR)
+    TMPDIR = os.path.join(OUTPUTDIR, 'tmp')
 if not os.path.exists(TMPDIR):
     os.makedirs(TMPDIR)
 
