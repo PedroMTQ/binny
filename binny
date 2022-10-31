@@ -19,17 +19,14 @@ try:
     from mantis.utils import download_file
     from mantis.exceptions import InstallationCheckNotPassed
 except (ImportError, ModuleNotFoundError):
-    env_path = '/'.join(sys.executable.split('/')[:-2])
-    python_version = '.'.join([str(sys.version_info.major), str(sys.version_info.minor)])
-    sys.path.append(os.path.join(f'{env_path}/lib/python{python_version}/site-packages/mantis'))
+    sys.path.append(os.path.join(args.conda_env_path, 'lib/python3.7/site-packages/mantis'))
     from assembler import check_installation, setup_databases
     from exceptions import InstallationCheckNotPassed
-    from utils import download_file
+    import utils
 
 
 
 binny_dir = os.path.abspath(os.path.dirname(__file__))
-# binny_dir = f'{get_python_lib()}/binny'
 snakefile = os.path.join(binny_dir, "Snakefile")
 def_configfile = os.path.join(binny_dir, 'config/config.default.yaml')
 int_config = os.path.join(binny_dir, 'config/binny_snakemake_defaults.yaml')
@@ -62,7 +59,7 @@ def arg_parser():
                                'or "path/to/my/mappings/with/*/different/folder/*/structure/*.bam" '
                                'or "path/to/my/mappings/my_mapping.bam. Leave empty if you have an average depth per '
                                'contig file to supply to binny.')
-    cov_args.add_argument('--contig_depth', default=None,
+    cov_args.add_argument('--contig_depth', type=str, default='',
                           help='Path to an average depth per contig tsv file. Leave empty if you supply a bam file for '
                                'binny to calculate average contig depth from. First column needs to be the contig ids, '
                                'subsequent column(s) for depht(s).')
@@ -72,7 +69,7 @@ def arg_parser():
     out_args.add_argument('-o', '--outputdir', type=str, required=True,
                           help='Path to desired output dir binny should create and store results in.')
     out_args.add_argument('--sample', type=str, default='sample', help='Sample name.')
-    out_args.add_argument('--tmp_dir', default=None,
+    out_args.add_argument('--tmp_dir', type=str, default='',
                           help='Path to a temporary directory to write to. Defaults to outputdir/tmp')
 
     # Resource params.
@@ -91,7 +88,7 @@ def arg_parser():
 
     # Snakemake arguments
     sm_args = parser.add_argument_group('Snakemake arguments', 'Arguments concerning the execution of Snakemake.')
-    sm_args.add_argument('-c', '--config_file', default=None,
+    sm_args.add_argument('-c', '--config_file', type=str, default='',
                          help=f'Path to config file. A default config file to use as template '
                               f'can be found at: {def_configfile}.')
     sm_args.add_argument('-m', '--use_cluster', action='store_true', default=False,
@@ -268,8 +265,8 @@ def run_binny_snakemake(args):
         config = {}
     else:
         config = vars(args)
-        if not args.tmp_dir:
-            config['tmp_dir'] = f'{args.outputdir}/tmp'
+        # if not args.tmp_dir:
+        #     config['tmp_dir'] = f'{args.outputdir}/tmp'
 
     if args.use_cluster:
         clust_sub_cmd = args.cluster_submission_command
