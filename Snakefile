@@ -193,9 +193,11 @@ workdir:
     OUTPUTDIR
 
 onsuccess:
+    INTERDIR = f"{OUTPUTDIR}/intermediary"
     shell(f"mkdir -p job.errs.outs &>> logs/cleanup.log; "
           f"( mv binny*stdout job.errs.outs || touch job.errs.outs ) &>> logs/cleanup.log; "
-          f"rm -rf {TMPDIR} &>> logs/cleanup.log")
+          f"rm -rf {TMPDIR} {INTERDIR}/prokka* {INTERDIR}/*bam {INTERDIR}/prokka* {INTERDIR}/annotation.filt.gff "
+          f"{INTERDIR}/assembly.formatted.fa {INTERDIR}/mantis_out &>> logs/cleanup.log")
 
 
 # Snakemake workflow
