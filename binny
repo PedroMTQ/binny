@@ -104,7 +104,7 @@ def arg_parser():
     sm_args.add_argument('-jn', '--job_name', type=str, default='binny.{rulename}.{jobid}.sh',
                          help='Naming scheme for cluster job scripts.')
     sm_args.add_argument('-r', '--report', action='store_true', default=False,
-                         help='Generate a report (it\'s recommended to run -c, -f and -l with -r).')
+                         help='Generate a report.')
     sm_args.add_argument('-d', '--dry-run', action='store_true', default=False, help='Perform a dry-run.')
     sm_args.add_argument('-u', '--unlock', action='store_true', default=False,
                          help='Unlock working directory (only necessary for crash/kill recovery).')

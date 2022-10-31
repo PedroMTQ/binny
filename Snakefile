@@ -193,7 +193,9 @@ workdir:
     OUTPUTDIR
 
 onsuccess:
-    shell("mkdir -p job.errs.outs &>> logs/cleanup.log; ( mv binny*stdout job.errs.outs || touch job.errs.outs ) &>> logs/cleanup.log") 
+    shell("mkdir -p job.errs.outs &>> logs/cleanup.log; "
+          "( mv binny*stdout job.errs.outs || touch job.errs.outs ) &>> logs/cleanup.log;"
+          f"rm -rf {TMPDIR} &>> logs/cleanup.log")
 
 
 # Snakemake workflow
@@ -341,7 +343,7 @@ rule annotate:
 #     conda:
 #         PROKKA_ENV if PROKKA_ENV else os.path.join(ENVDIR, "prokka.yaml")
     message:
-        "annotate: Running prokkaP."
+        "Annotate: Running ProkkaP."
     shell:
         """
         export PERL5LIB=$CONDA_PREFIX/lib/site_perl/5.26.2
@@ -443,6 +445,6 @@ rule binny:
     benchmark:
         os.path.join(OUTPUTDIR, "logs/binning_binny_benchmark.txt")
     message:
-            "binny: Running Python Binny."
+            "binny: Running binny."
     script:
         os.path.join(SRCDIR, "binny_main.py")
