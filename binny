@@ -99,7 +99,7 @@ def arg_parser():
                                  '{cluster.threads}{threads} {cluster.partition} {cluster.stdout}',
                          help='Submission command of a cluster or batch system to use (Atm only slurm support.')
     sm_args.add_argument('-spp', '--scheduler_preset_path', type=str, default=os.path.join(config_dir,
-                                                                                           'slurm.config.yaml'),
+                                                                                           'slurm_simple.config.yaml'),
                          help='Path to the scheduler preset file for cluster submission.')
     sm_args.add_argument('-jn', '--job_name', type=str, default='binny.{rulename}.{jobid}.sh',
                          help='Naming scheme for cluster job scripts.')
