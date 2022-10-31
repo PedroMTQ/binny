@@ -193,8 +193,8 @@ workdir:
     OUTPUTDIR
 
 onsuccess:
-    shell("mkdir -p job.errs.outs &>> logs/cleanup.log; "
-          "( mv binny*stdout job.errs.outs || touch job.errs.outs ) &>> logs/cleanup.log;"
+    shell(f"mkdir -p job.errs.outs &>> logs/cleanup.log; "
+          f"( mv binny*stdout job.errs.outs || touch job.errs.outs ) &>> logs/cleanup.log; "
           f"rm -rf {TMPDIR} &>> logs/cleanup.log")
 
 
