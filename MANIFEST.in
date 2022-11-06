@@ -1,0 +1,8 @@
+include bin/*
+include recursive-include binny/*
+include config/*
+include envs/*
+include test/*
+include LICENSE
+include README.md
+include Snakefile
