@@ -1,7 +1,6 @@
 conda/
 .*
 database/
-binny_*
-binny
 test*
 !.gitignore
+*.egg-info
