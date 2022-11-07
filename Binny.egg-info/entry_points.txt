@@ -1,2 +1,0 @@
-[console_scripts]
-binny = binny.__main__:main
